@@ -116,14 +116,14 @@
       <item row="14" column="0">
        <widget class="QLabel" name="label_3">
         <property name="text">
-         <string>Number of rotations: </string>
+         <string>Number of views: </string>
         </property>
        </widget>
       </item>
       <item row="14" column="1">
        <widget class="QSpinBox" name="rotationSpinBox">
         <property name="minimum">
-         <number>30</number>
+         <number>15</number>
         </property>
         <property name="maximum">
          <number>120</number>
@@ -132,20 +132,20 @@
          <number>0</number>
         </property>
         <property name="value">
-         <number>70</number>
+         <number>45</number>
         </property>
        </widget>
       </item>
       <item row="15" column="1">
        <widget class="QSlider" name="rotationSlider">
         <property name="minimum">
-         <number>30</number>
+         <number>15</number>
         </property>
         <property name="maximum">
          <number>120</number>
         </property>
         <property name="value">
-         <number>70</number>
+         <number>40</number>
         </property>
         <property name="tracking">
          <bool>true</bool>
@@ -289,7 +289,10 @@
       <item row="0" column="1">
        <widget class="QComboBox" name="resolutionComboBox">
         <property name="currentText">
-         <string>256</string>
+         <string>320</string>
+        </property>
+        <property name="currentIndex">
+         <number>1</number>
         </property>
         <item>
          <property name="text">

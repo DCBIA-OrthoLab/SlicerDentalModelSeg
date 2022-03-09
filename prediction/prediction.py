@@ -24,12 +24,12 @@ class prediction(ScriptedLoadableModule):
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
     self.parent.title = "prediction - FiboSeg" 
-    self.parent.categories = ["Examples"]  # TODO: set categories (folders where the module shows up in the module selector)
+    self.parent.categories = ["Segmentation"]  # TODO: set categories (folders where the module shows up in the module selector)
     self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-    self.parent.contributors = ["Mathieu Leclercq"]  # TODO: replace with "Firstname Lastname (Organization)"
+    self.parent.contributors = ["Mathieu Leclercq (University of North Carolina)", "Juan Carlos Prieto (University of North Carolina)"]  # TODO: replace with "Firstname Lastname (Organization)"
     # TODO: update with short description of the module and a link to online module documentation
     self.parent.helpText = """
-This is an example of scripted loadable module bundled in an extension.
+This extension provides a GUI for the deep learning method for jaw segmentation that we developed.
 """
     # TODO: replace with organization, grant and thanks
     self.parent.acknowledgementText = """
