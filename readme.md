@@ -38,7 +38,7 @@ Open the module named "Prediction - FiboSeg".
  - The input file must be a .vtk file of a lower or upper jaw. The model
    works better with models of jaws with no wisdom teeth. You can find
    examples in the "Examples" folder.
- - Number of rotations: this sets the number of 2D views used for one
+ - Number of views: this sets the number of 2D views used for one
    prediction. A low number takes less time to compute, but results can
    be inaccurate.
  - Model for segmentation: this is the path for the neural network
