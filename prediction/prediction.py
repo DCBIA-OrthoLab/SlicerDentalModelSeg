@@ -115,10 +115,9 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.surfaceLineEdit.textChanged.connect(self.onEditSurfaceLine)
     self.ui.modelLineEdit.textChanged.connect(self.onEditModelLine)    
     self.ui.githubButton.connect('clicked(bool)',self.onGithubButton)
-    #self.ui.browseCodeButton.connect('clicked(bool)',self.onBrowseCodeButton)
-    #self.ui.codeLineEdit.textChanged.connect(self.onEditCodeLine)
     self.ui.surfaceComboBox.currentTextChanged.connect(self.onSurfaceModeChanged)
-    self.ui.nodesComboBox.currentTextChanged.connect(self.onNodeChanged)
+    self.ui.MRMLNodeComboBox.setMRMLScene(slicer.mrmlScene)
+    self.ui.MRMLNodeComboBox.currentNodeChanged.connect(self.onNodeChanged)
 
 
     # Advanced 
@@ -138,7 +137,7 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.openOutButton.setHidden(True)
     self.ui.cancelButton.setHidden(True)
     self.ui.doneLabel.setHidden(True)
-    self.ui.nodesComboBox.setHidden(True)
+    self.ui.MRMLNodeComboBox.setHidden(True)
 
     #initialize variables
     self.model = self.ui.modelLineEdit.text
@@ -148,8 +147,8 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.predictedId = self.ui.predictedIdLineEdit.text
     self.resolution = int(self.ui.resolutionComboBox.currentText)
     self.rotation = self.ui.rotationSlider.value
-    #self.codePath = self.ui.codeLineEdit.text
-
+    self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
+    #print(self.MRMLNode.GetName())
 
     # Make sure parameter node is initialized (needed for module reload)
     self.initializeParameterNode()
@@ -306,12 +305,12 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
   def onApplyChangesButton(self):
     print(self.inputChoice.name)
-    if (self.inputChoice is InputChoice.MRML_NODE or os.path.isfile(self.surfaceFile))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
+    if ((self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is not None) or os.path.isfile(self.surfaceFile))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
       self.ui.applyChangesButton.setEnabled(False)
       self.ui.progressBar.setEnabled(True)
       if self.inputChoice is InputChoice.VTK:
         self.logic = predictionLogic(self.surfaceFile,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
-      else:
+      else: # MRML node
         filename = self.writeVTKFromNode()
         self.logic = predictionLogic(filename,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
 
@@ -323,13 +322,20 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
     else:
-      print('error')
+      print('Error.')
       msg = qt.QMessageBox()
-      if not(os.path.isfile(self.surfaceFile)):        
+      if self.inputChoice is InputChoice.VTK and not(os.path.isfile(self.surfaceFile)):        
         msg.setText("Surface directory : \nIncorrect path.")
         print('Error: Incorrect path for surface directory.')
         self.ui.surfaceLineEdit.setText('')
         print(f'surface folder : {self.surfaceFile}')
+
+
+      elif self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is None:        
+        msg.setText("Input surface : \nPlease select a MRML node.")
+        print('Error: No MRML node was selected.')
+        self.ui.surfaceLineEdit.setText('')
+        print(f'MRML node : {self.MRMLNode}')
      
       elif not(os.path.isdir(self.outputFolder)):
         msg.setText("Output directory : \nIncorrect path.")
@@ -342,6 +348,9 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         print('Error: Incorrect path for model.')
         self.ui.modelLineEdit.setText('')
         print(f'model path: {self.model}')
+
+      else:
+        msg.setText('Unknown error.')
 
       msg.setWindowTitle("Error")
       msg.exec_()
@@ -400,20 +409,6 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       print(self.outputFile)
     #print(f'Output directory : {self.outputFile}')      
 
-  """
-  def onBrowseCodeButton(self):
-    newCodeFolder = qt.QFileDialog.getExistingDirectory(self.parent, "Select a directory")
-    if newCodeFolder != '':
-      if newCodeFolder[-1] != "/":
-        newCodeFolder += '/'
-      self.codePath = newCodeFolder
-      print(self.codePath)
-      self.ui.codeLineEdit.setText(self.codePath)
-
-
-  def onEditCodeLine(self):
-    self.codePath = self.ui.codeLineEdit.text
-  """
 
   def onEditModelLine(self):
     self.model = self.ui.modelLineEdit.text
@@ -447,30 +442,21 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       self.inputChoice = InputChoice.VTK
       self.ui.surfaceLineEdit.setHidden(False)
       self.ui.browseSurfaceButton.setHidden(False)
-      self.ui.nodesComboBox.setHidden(True)
       self.surfaceFile = self.ui.surfaceLineEdit.text
     else:
       self.inputChoice = InputChoice.MRML_NODE
       self.ui.surfaceLineEdit.setHidden(True)
       self.ui.browseSurfaceButton.setHidden(True)
-      nodes_class = slicer.util.getNodesByClass("vtkMRMLModelNode")
-      self.lNodes = []
-      for item in nodes_class:
-        if item.GetName() != 'Slice Volume Slice':
-          self.lNodes.append(item)
-
-      for item in self.lNodes:
-        self.ui.nodesComboBox.addItem(item.GetName())
-
-      self.ui.nodesComboBox.setHidden(False)
+      self.ui.MRMLNodeComboBox.setHidden(False)
 
   def onNodeChanged(self):
-    self.MRMLNode = self.lNodes[self.ui.nodesComboBox.currentIndex]
-    print(f'node choice: {self.MRMLNode.GetName()}')
+    self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
+    if self.MRMLNode is not None:
+      print(self.MRMLNode.GetName())
+
 
   def writeVTKFromNode(self):
-    poly = self.MRMLNode.GetPolyData()
-    
+    poly = self.MRMLNode.GetPolyData()    
     filename = self.outputFile[0:-4]+"_input.vtk"
     print(filename)
     polydatawriter = vtk.vtkPolyDataWriter()
