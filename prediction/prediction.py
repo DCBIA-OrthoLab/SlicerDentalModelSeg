@@ -5,6 +5,7 @@ import logging
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
+from enum import Enum
 
 import itk
 import time
@@ -42,6 +43,10 @@ and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR0132
 # predictionWidget
 #
 
+class InputChoice(Enum):
+  VTK = 0
+  MRML_NODE = 1
+
 class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   """Uses ScriptedLoadableModuleWidget base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
@@ -66,7 +71,7 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.resolution = 256
     self.predictedId = ""
     self.rotation = None
-    self.inputChoice = 0 #  0: vtk, 1: mrml node
+    self.inputChoice = InputChoice.VTK
     self.lNodes = []
     self.MRMLNode = None
 
@@ -141,7 +146,7 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.outputFolder = self.ui.outputLineEdit.text
     self.outputFile = self.ui.outputLineEdit.text + self.ui.outputFileLineEdit.text
     self.predictedId = self.ui.predictedIdLineEdit.text
-    self.resolution = self.ui.resolutionComboBox.currentText
+    self.resolution = int(self.ui.resolutionComboBox.currentText)
     self.rotation = self.ui.rotationSlider.value
     #self.codePath = self.ui.codeLineEdit.text
 
@@ -300,11 +305,11 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
   def onApplyChangesButton(self):
-    print(self.inputChoice)
-    if (self.inputChoice or os.path.isfile(self.surfaceFile))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
+    print(self.inputChoice.name)
+    if (self.inputChoice is InputChoice.MRML_NODE or os.path.isfile(self.surfaceFile))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
       self.ui.applyChangesButton.setEnabled(False)
       self.ui.progressBar.setEnabled(True)
-      if self.inputChoice == 0:
+      if self.inputChoice is InputChoice.VTK:
         self.logic = predictionLogic(self.surfaceFile,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
       else:
         filename = self.writeVTKFromNode()
@@ -439,13 +444,13 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     choice = self.ui.surfaceComboBox.currentText
     if choice == 'Select .vtk file':
-      self.inputChoice = 0
+      self.inputChoice = InputChoice.VTK
       self.ui.surfaceLineEdit.setHidden(False)
       self.ui.browseSurfaceButton.setHidden(False)
       self.ui.nodesComboBox.setHidden(True)
       self.surfaceFile = self.ui.surfaceLineEdit.text
     else:
-      self.inputChoice = 1
+      self.inputChoice = InputChoice.MRML_NODE
       self.ui.surfaceLineEdit.setHidden(True)
       self.ui.browseSurfaceButton.setHidden(True)
       nodes_class = slicer.util.getNodesByClass("vtkMRMLModelNode")
@@ -456,8 +461,6 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
       for item in self.lNodes:
         self.ui.nodesComboBox.addItem(item.GetName())
-
-
 
       self.ui.nodesComboBox.setHidden(False)
 
@@ -541,54 +544,54 @@ class predictionLogic(ScriptedLoadableModuleLogic):
 # predictionTest
 #
 
-class predictionTest(ScriptedLoadableModuleTest):
-  """
-  This is the test case for your scripted module.
-  Uses ScriptedLoadableModuleTest base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
+# class predictionTest(ScriptedLoadableModuleTest):
+#   """
+#   This is the test case for your scripted module.
+#   Uses ScriptedLoadableModuleTest base class, available at:
+#   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+#   """
 
-  def setUp(self):
-    """ Do whatever is needed to reset the state - typically a scene clear will be enough.
-    """
-    slicer.mrmlScene.Clear()
+#   def setUp(self):
+#     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
+#     """
+#     slicer.mrmlScene.Clear()
 
-  def runTest(self):
-    """Run as few or as many tests as needed here.
-    """
-    self.setUp()
-    self.test_prediction1()
+#   def runTest(self):
+#     """Run as few or as many tests as needed here.
+#     """
+#     self.setUp()
+#     self.test_prediction1()
 
-  def test_prediction1(self):
-    """ Ideally you should have several levels of tests.  At the lowest level
-    tests should exercise the functionality of the logic with different inputs
-    (both valid and invalid).  At higher levels your tests should emulate the
-    way the user would interact with your code and confirm that it still works
-    the way you intended.
-    One of the most important features of the tests is that it should alert other
-    developers when their changes will have an impact on the behavior of your
-    module.  For example, if a developer removes a feature that you depend on,
-    your test should break so they know that the feature is needed.
-    """
+#   def test_prediction1(self):
+#     """ Ideally you should have several levels of tests.  At the lowest level
+#     tests should exercise the functionality of the logic with different inputs
+#     (both valid and invalid).  At higher levels your tests should emulate the
+#     way the user would interact with your code and confirm that it still works
+#     the way you intended.
+#     One of the most important features of the tests is that it should alert other
+#     developers when their changes will have an impact on the behavior of your
+#     module.  For example, if a developer removes a feature that you depend on,
+#     your test should break so they know that the feature is needed.
+#     """
 
-    self.delayDisplay("Starting the test")
+#     self.delayDisplay("Starting the test")
 
-    # Get/create input data
+#     # Get/create input data
 
-    import SampleData
-    registerSampleData()
-    inputVolume = SampleData.downloadSample('prediction1')
-    self.delayDisplay('Loaded test data set')
+#     import SampleData
+#     registerSampleData()
+#     inputVolume = SampleData.downloadSample('prediction1')
+#     self.delayDisplay('Loaded test data set')
 
-    inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-    self.assertEqual(inputScalarRange[0], 0)
-    self.assertEqual(inputScalarRange[1], 695)
+#     inputScalarRange = inputVolume.GetImageData().GetScalarRange()
+#     self.assertEqual(inputScalarRange[0], 0)
+#     self.assertEqual(inputScalarRange[1], 695)
 
-    outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-    threshold = 100
+#     outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+#     threshold = 100
 
-    # Test the module logic
+#     # Test the module logic
 
-    # logic = predictionLogic()
+#     # logic = predictionLogic()
 
-    self.delayDisplay('Test passed')
+#     self.delayDisplay('Test passed')
