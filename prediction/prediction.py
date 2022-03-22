@@ -24,7 +24,7 @@ class prediction(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "prediction - FiboSeg" 
+    self.parent.title = "Jaw Segmentation - FiboSeg" 
     self.parent.categories = ["Segmentation"]  # TODO: set categories (folders where the module shows up in the module selector)
     self.parent.dependencies = []  # TODO: add here list of module names that this module requires
     self.parent.contributors = ["Mathieu Leclercq (University of North Carolina)", "Juan Carlos Prieto (University of North Carolina)"]  # TODO: replace with "Firstname Lastname (Organization)"
