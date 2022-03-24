@@ -24,10 +24,19 @@ class prediction(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Jaw Segmentation - FiboSeg" 
+    self.parent.title = "Crown Segmentation - FiboSeg" 
     self.parent.categories = ["Segmentation"]  # TODO: set categories (folders where the module shows up in the module selector)
     self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-    self.parent.contributors = ["Mathieu Leclercq (University of North Carolina)", "Juan Carlos Prieto (University of North Carolina)"]  # TODO: replace with "Firstname Lastname (Organization)"
+    self.parent.contributors = ["Mathieu Leclercq (University of North Carolina)", 
+    "Juan Carlos Prieto (University of North Carolina)",
+    "Martin Styner (University of North Carolina)",
+    "Lucia Cevidanes (University of Michigan)",
+    "Beatriz Paniagua (Kitware)",
+    "Connor Bowley (Kitware)",
+    "Antonio Ruellas (University of Michigan)",
+    "Marcela Gurgel (University of Michigan)",
+    "Marilia Yatabe (University of Michigan)",
+    "Jonas Bianchi (University of Michigan)"]  # TODO: replace with "Firstname Lastname (Organization)"
     # TODO: update with short description of the module and a link to online module documentation
     self.parent.helpText = """
 This extension provides a GUI for the deep learning method for jaw segmentation that we developed.
