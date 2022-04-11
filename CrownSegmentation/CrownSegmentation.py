@@ -528,7 +528,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
       convert_file.truncate(0)
       convert_file.write(json.dumps(env))
     
-    flybyProcess = slicer.modules.CrownSegmentationcli
+    flybyProcess = slicer.modules.crownsegmentationcli
     self.cliNode = slicer.cli.run(flybyProcess,None, parameters)    
     return flybyProcess
 

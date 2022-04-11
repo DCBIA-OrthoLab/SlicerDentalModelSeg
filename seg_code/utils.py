@@ -313,8 +313,8 @@ def RandomRotation(surf):
     return RotateSurf(surf, rotationAngle, rotationVector), rotationAngle, rotationVector
 
 def GetUnitSurf(surf, mean_arr = None, scale_factor = None, copy=True):
-  surf, surf_mean, surf_scale = ScaleSurf(surf, mean_arr, scale_factor, copy)
-  return surf
+  unit_surf, surf_mean, surf_scale = ScaleSurf(surf, mean_arr, scale_factor, copy)
+  return unit_surf
 
 def GetColoredActor(surf, property_name, range_scalars = None):
 
