@@ -5,24 +5,6 @@ This extension aims to provide a GUI for the deep learning method for surface se
 
 
 
-# Python environment
-For the extension to work, you need to setup a python 3.9 environment with the dependencies listed below:
-
--   vtk 			9.0.3
--   monai 			0.7.0
--   torch                   1.9.0+cu111
--   torchaudio              0.10.0+cu113
--   torchvision             0.11.1+cu113
--   pytorch3d 		0.6.0
--   tqdm
--   numpy
--   argparse
--   pandas
--   itk
--   SimpleITK
--   scikit-image  / scikit-learn
--	scipy
-
  *NB: The extension was tested with these specific versions, however it may work with more recent ones.
 Additional packages may be required. you can install them with "pip install ... ".  No specific version should be required for these packages.*
 
