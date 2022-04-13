@@ -44,7 +44,7 @@ Additional packages may be required. you can install them with "pip install ... 
  - To visualize the results, open the output file and set scalars to
    "visible" and select the correct scalar in  Slicer's "Models" module.
 
-When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".
+When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface" button.
 
  ![example](https://github.com/MathieuLeclercq/fly-by-cnn/blob/master/src/slicer_jaw_segmentation/examples/segmentation_example.png?raw=true) 
 
