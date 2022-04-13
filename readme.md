@@ -27,10 +27,6 @@ For the extension to work, you need to setup a python 3.9 environment with the d
 Additional packages may be required. you can install them with "pip install ... ".  No specific version should be required for these packages.*
 
 # How to run the extension
-
-## Opening the extension
-The python environment must be active when opening Slicer (the extension looks for the startup environment when running the segmentation algorithm). 
-Open the module named "Prediction - FiboSeg".
  
 
 ## Running the module
