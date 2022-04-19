@@ -37,7 +37,22 @@ class CrownSegmentation(ScriptedLoadableModule):
     "Jonas Bianchi (University of Michigan)"]  # TODO: replace with "Firstname Lastname (Organization)"
     # TODO: update with short description of the module and a link to online module documentation
     self.parent.helpText = """
-This extension provides a GUI for the deep learning method for jaw segmentation that we developed.
+This extension provides a GUI for the deep learning method for jaw segmentation that we developed. 
+The dental crowns are segmented according to the <a href="https://en.wikipedia.org/wiki/Universal_Numbering_System">Universal Number System</a>. <br> <br>
+
+
+Running the module : <br> 
+- The input file must be a .vtk file of a lower or upper jaw. The model works better with models of jaws with no wisdom teeth. You can find examples in the "Examples" folder.
+Number of views: this sets the number of 2D views used for one prediction. A low number takes less time to compute, but results can be inaccurate.<br> <br>
+
+- Model for segmentation: this is the path for the neural network model. Resolution: This sets the resolution of the 2D views. 320 px is recommended. 
+Name of predicted labels: this is the name the array with the predicted labels on the output vtk file.   <br> <br> 
+
+- To visualize the results, open the output file and set scalars to "visible" and select the correct scalar in Slicer's "Models" module. <br><br>
+
+When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".<br> <br> 
+
+More help can be found on the <a href="https://github.com/MathieuLeclercq/SlicerJawSegmentation">Github repository</a> for the extension.
 """
     # TODO: replace with organization, grant and thanks
     self.parent.acknowledgementText = """
@@ -84,6 +99,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
 
   def setup(self):
+    self.removeObservers()
     """
     Called when the user opens the module the first time and the widget is initialized.
     """
@@ -112,7 +128,9 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
     # UI elements
-      
+    
+    self.ui.dependenciesButton.connect('clicked(bool)',self.checkDependencies)
+
     # Inputs
     self.ui.applyChangesButton.connect('clicked(bool)',self.onApplyChangesButton)
     self.ui.rotationSpinBox.valueChanged.connect(self.onRotationSpinbox)
@@ -128,8 +146,10 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
 
     # Advanced 
+    self.ui.advancedCollapsibleButton.collapsed = 0 # Set to 1
     self.ui.predictedIdLineEdit.textChanged.connect(self.onEditPredictedIdLine)
     self.ui.resolutionComboBox.currentTextChanged.connect(self.onResolutionChanged)
+    self.ui.installProgressBar.setEnabled(False)
 
     # Outputs 
     self.ui.browseOutputButton.connect('clicked(bool)',self.onBrowseOutputButton)
@@ -267,6 +287,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
 
   def onProcessUpdate(self,caller,event):
+    #print(f"caller.GetProgress(): {caller.GetProgress()}")
+    # print(f"event: {event}")
     if self.logic.cliNode.GetStatus() & self.logic.cliNode.Completed:
       self.ui.applyChangesButton.setEnabled(True)
       self.ui.resetButton.setEnabled(True)
@@ -324,11 +346,11 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       self.ui.doneLabel.setHidden('True')
       self.ui.openOutButton.setHidden('True')
       self.logic.process()
-      self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
+      self.processObserver = self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
       self.onProcessStarted()
 
 
-    else:
+    else:  # Error
       print('Error.')
       msg = qt.QMessageBox()
       if self.inputChoice is InputChoice.VTK and not(os.path.isfile(self.surfaceFile)):        
@@ -374,6 +396,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.progressBar.setValue(0)
     self.ui.doneLabel.setHidden(True)
     self.ui.surfaceComboBox.setCurrentIndex(0)
+    self.removeObservers()
+    
 
   def onCancel(self):
     self.logic.cliNode.Cancel()
@@ -383,6 +407,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.progressBar.setRange(0,100)
     self.ui.progressLabel.setHidden(True)
     self.ui.cancelButton.setEnabled(False)
+    self.removeObservers()
 
     
     print("Process successfully cancelled.")
@@ -471,7 +496,32 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     polydatawriter.SetInputData(poly)
     polydatawriter.Write()
     return filename
-      
+
+  def checkDependencies(self): #TODO: ALSO CHECK FOR CUDA 
+
+    self.ui.dependenciesButton.setEnabled(False)
+    self.ui.applyChangesButton.setEnabled(False)
+    self.ui.installProgressBar.setEnabled(True)
+    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0)
+    self.installLogic.process()
+    self.ui.installProgressBar.setRange(0,0)
+    self.installObserver = self.installLogic.cliNode.AddObserver('ModifiedEvent',self.onInstallationProgress)
+    
+
+  def onInstallationProgress(self,caller,event):
+    if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.Completed:
+      if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.ErrorsMask:
+        # error
+        errorText = self.installLogic.cliNode.GetErrorText()
+        print("CLI execution failed: " + errorText)
+      else:
+        # success
+        print('SUCCESS')
+      self.ui.installProgressBar.setRange(0,100)
+      self.ui.installProgressBar.setEnabled(False)
+      self.ui.dependenciesButton.setEnabled(True)
+      self.ui.applyChangesButton.setEnabled(True)
+
 
 #
 # CrownSegmentationLogic
@@ -497,6 +547,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     self.nbOperation = 0
     self.progress = 0
     self.cliNode = None
+    self.installCliNode = None
     print(f"model: {self.model}")
     print(f'surfaceFile : {self.surfaceFile}')
     print(f'outptutfile : {self.outputFile}')
@@ -519,16 +570,12 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     parameters ['resolution'] = self.resolution
     parameters ['model'] = self.model
     parameters ['predictedId'] = self.predictedId
+    print ('parameters : ', parameters)
     #parameters ['codePath'] = self.codePath
-    env = slicer.util.startupEnvironment()
-    print('\n\n\n\n')
-    #print ('parameters : ', parameters)
 
-    with open('env.json', 'w') as convert_file:
-      convert_file.truncate(0)
-      convert_file.write(json.dumps(env))
-    
     flybyProcess = slicer.modules.crownsegmentationcli
+
+
     self.cliNode = slicer.cli.run(flybyProcess,None, parameters)    
     return flybyProcess
 

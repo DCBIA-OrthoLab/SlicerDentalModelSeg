@@ -1,60 +1,110 @@
+#!/usr/bin/env python-real
 print("Importing libraries...")
-
-
-####
-####
-"""
-V3: Ambient lights to have faster prediction (rotate camera instead of surface)
-    Icosahedron 
-    Choice: UNETR or UNET
-    Random crown removal
-"""
-####
-####
-
+from slicer.util import pip_install
 import os
-import argparse
-import torch
-import time
-from tqdm import tqdm
-import numpy as np
-import random
-import math
-
-# datastructures
-from pytorch3d.structures import Meshes
-
-# rendering components
-from pytorch3d.renderer import (
-    FoVPerspectiveCameras, look_at_rotation, 
-    RasterizationSettings, MeshRenderer, MeshRasterizer, HardPhongShader, PointLights,AmbientLights,TexturesVertex
-)
-import vtk
-from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 import sys
 
-fileDir = os.path.dirname(os.path.abspath(__file__)).split('/')
-fileDir[-1] = 'seg_code'
-new_path = '/'.join(fileDir)
-sys.path.append(new_path)
-print(new_path)
-import fly_by_features as fbf
-import post_process
 
-import monai
-from monai.inferers import (sliding_window_inference,SimpleInferer)
-from monai.transforms import ToTensor
+def InstallDependencies():
+  print('Installing dependencies...')
+  pip_install('tqdm==4.64.0') # tqdm
+  pip_install('pandas==1.4.2') # pandas
+  pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
+  pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu111_pyt1101/download.html') # pytorch3d
+  pip_install('itk==5.2.1.post1') # itk
+  pip_install('monai==0.7.0') # monai
 
-print("Initializing model...")
-# Set the cuda device 
-if torch.cuda.is_available():
-  device = torch.device("cuda:0")
-  torch.cuda.set_device(device)
-else:
-  device = torch.device("cpu") 
+  return 0
 
-def main(surf,out,rot,res,unet_model,scal,unetr,rem):
 
+if sys.argv[1] == '-1':
+  InstallDependencies()
+
+
+def ImportModules():
+  try:
+    from tqdm import tqdm
+  except ImportError:
+    pip_install('tqdm==4.64.0')
+
+  try:
+    import pandas
+  except ImportError:
+    pip_install('pandas==1.4.2')
+
+  try:
+    import torch
+    pyt_version_str=torch.__version__.split("+")[0].replace(".", "")
+    version_str="".join([f"py3{sys.version_info.minor}_cu",torch.version.cuda.replace(".",""),f"_pyt{pyt_version_str}"])  
+    if version_str != 'py39_cu111_pyt190':
+      raise ImportError
+  except ImportError:
+    pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html')
+
+  try:
+    import pytorch3d
+    if pytoch3d.__version__ != '0.6.0':
+      raise ImportError
+  except ImportError:
+    try:
+      import torch
+      pyt_version_str=torch.__version__.split("+")[0].replace(".", "")
+      version_str="".join([f"py3{sys.version_info.minor}_cu",torch.version.cuda.replace(".",""),f"_pyt{pyt_version_str}"])
+      pip_install('--upgrade pip')
+      pip_install('fvcore==0.1.5.post20220305')
+      pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/{version_str}/download.html')
+    except: # install correct torch version
+      pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') 
+      pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu111_pyt1101/download.html')
+
+  try:
+    import itk
+  except ImportError:
+    pip_install('itk==5.2.1.post1')
+
+  try:
+    import monai
+    if monai.__version__ != '0.8.dev2143':
+      raise ImportError
+  except ImportError:
+    pip_install('monai==0.7.0')
+
+  fileDir = os.path.dirname(os.path.abspath(__file__)).split('/')
+  fileDir[-1] = 'seg_code'
+  new_path = '/'.join(fileDir)
+  sys.path.append(new_path)
+
+  import utils
+  import post_process
+
+  import argparse
+
+  # datastructures
+  from pytorch3d.structures import Meshes
+
+  # rendering components
+  from pytorch3d.renderer import (
+      FoVPerspectiveCameras, look_at_rotation, 
+      RasterizationSettings, MeshRenderer, MeshRasterizer, HardPhongShader, PointLights,AmbientLights,TexturesVertex
+  )
+
+  # monai imports
+  from monai.inferers import (sliding_window_inference,SimpleInferer)
+  from monai.transforms import ToTensor
+
+  print("Initializing model...",flush=True)
+
+  # Set the cuda device 
+  if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+    torch.cuda.set_device(device)
+  else:
+    device = torch.device("cpu") 
+
+  return device
+
+def main(surf,out,rot,res,unet_model,scal):
+  device = ImportModules()
   # Initialize a perspective camera.
   cameras = FoVPerspectiveCameras(device=device)
   image_size = res
@@ -78,25 +128,14 @@ def main(surf,out,rot,res,unet_model,scal,unetr,rem):
   num_classes = 34
   # create UNet
 
-
-  if unetr == 1:
-    model = monai.networks.nets.UNETR(
-        spatial_dims=2,
-        in_channels=4,   # images: torch.cuda.FloatTensor[batch_size,224,224,4]
-        img_size=image_size,
-        out_channels=num_classes, 
-    ).to(device)
-
-
-  else:
-    model = monai.networks.nets.UNet(
-        spatial_dims=2,
-        in_channels=4,   # images: torch.cuda.FloatTensor[batch_size,224,224,4]
-        out_channels=num_classes, 
-        channels=(16, 32, 64, 128, 256),
-        strides=(2, 2, 2, 2),
-        num_res_units=2,
-    ).to(device)
+  model = monai.networks.nets.UNet(
+      spatial_dims=2,
+      in_channels=4,   # images: torch.cuda.FloatTensor[batch_size,224,224,4]
+      out_channels=num_classes, 
+      channels=(16, 32, 64, 128, 256),
+      strides=(2, 2, 2, 2),
+      num_res_units=2,
+  ).to(device)
 
   model.load_state_dict(torch.load(unet_model))
   path = surf
@@ -109,29 +148,8 @@ def main(surf,out,rot,res,unet_model,scal,unetr,rem):
   ## Camera position
   dist_cam = 1.35
   
-  SURF = fbf.ReadSurf(path)
-
-
-  if rem != 0:
-    surf_point_data = SURF.GetPointData().GetScalars("UniversalID") 
-    ## Remove crown
-    unique, counts  = np.unique(surf_point_data, return_counts = True)
-
-    if unique != [None]:
-      id_to_remove = rem
-      if id_to_remove not in unique:
-        print(f'Warning: ID {id_to_remove} not in id list. Removing random label...')
-      while (id_to_remove in [-1,33]) or (id_to_remove not in unique): 
-          id_to_remove = random.choice(unique)
-      print(f'ID to remove: {id_to_remove}')
-      SURF = post_process.Threshold(SURF, "UniversalID" ,id_to_remove-0.5,id_to_remove+0.5, invert=True)
-    else:
-      print ('Could not access UniversalID array. No crown will be removed.')
-
-
-  surf_unit = fbf.GetUnitSurf(SURF)
-
-
+  SURF = utils.ReadSurf(path)
+  surf_unit = utils.GetUnitSurf(SURF)
 
 
   num_faces = int(SURF.GetPolys().GetData().GetSize()/4)   
@@ -166,6 +184,7 @@ def main(surf,out,rot,res,unet_model,scal,unetr,rem):
     for x in range(image_size):
         for y in range (image_size): # Browse pixel by pixel
             array_faces[:,pix_to_face[x,y]] += outputs_softmax[...,x,y]
+
     
   
 
@@ -194,7 +213,6 @@ def main(surf,out,rot,res,unet_model,scal,unetr,rem):
   for label in tqdm(range(num_classes),desc = 'Removing islands'):
     post_process.RemoveIslands(surf, vtk_id, label, 200,ignore_neg1 = True)  # adds -1 labels to isolated points: removed later
 
-
   array = surf.GetPointData().GetScalars("PredictedID") 
 
   unique, counts  = np.unique(array, return_counts = True)
@@ -204,6 +222,7 @@ def main(surf,out,rot,res,unet_model,scal,unetr,rem):
   polydatawriter.SetFileName(out_filename)
   polydatawriter.SetInputData(surf)
   polydatawriter.Write()
+  
   print("Done.")
 
 
@@ -222,16 +241,20 @@ def fibonacci_sphere(samples, dist_cam):
 
 
 def GetSurfProp(surf_unit):     
-    surf = fbf.ComputeNormals(surf_unit)
+    surf = utils.ComputeNormals(surf_unit)
 
-    color_normals = ToTensor(dtype=torch.float32, device=device)(vtk_to_numpy(fbf.GetColorArray(surf, "Normals"))/255.0)
+    color_normals = ToTensor(dtype=torch.float32, device=device)(vtk_to_numpy(utils.GetColorArray(surf, "Normals"))/255.0)
     verts = ToTensor(dtype=torch.float32, device=device)(vtk_to_numpy(surf.GetPoints().GetData()))
     faces = ToTensor(dtype=torch.int64, device=device)(vtk_to_numpy(surf.GetPolys().GetData()).reshape(-1, 4)[:,1:])
     return verts.unsqueeze(0), faces.unsqueeze(0), color_normals.unsqueeze(0)
+
 
 
 if __name__ == "__main__":
   if len (sys.argv) < 7:
     print("Usage: CrownSegmentationcli <surf> <out> <rot> <res> <model> <scal>")
     sys.exit (1)
-  main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6],0,0)
+  if sys.argv[1] == '-1':
+    InstallDependencies()
+  else:
+    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6])
