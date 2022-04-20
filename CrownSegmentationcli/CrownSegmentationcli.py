@@ -4,8 +4,8 @@ from slicer.util import pip_install
 import os
 import sys
 
-
-def InstallDependencies():
+if sys.argv[1] == '-1':
+  # Install dependencies
   print('Installing dependencies...')
   pip_install('tqdm==4.64.0') # tqdm
   pip_install('pandas==1.4.2') # pandas
@@ -14,14 +14,9 @@ def InstallDependencies():
   pip_install('itk==5.2.1.post1') # itk
   pip_install('monai==0.7.0') # monai
 
-  return 0
 
-
-if sys.argv[1] == '-1':
-  InstallDependencies()
-
-
-def ImportModules():
+else:
+  # normal execution
   try:
     from tqdm import tqdm
   except ImportError:
@@ -43,7 +38,7 @@ def ImportModules():
 
   try:
     import pytorch3d
-    if pytoch3d.__version__ != '0.6.0':
+    if pytorch3d.__version__ != '0.6.0':
       raise ImportError
   except ImportError:
     try:
@@ -71,14 +66,16 @@ def ImportModules():
 
   fileDir = os.path.dirname(os.path.abspath(__file__)).split('/')
   fileDir[-1] = 'seg_code'
-  new_path = '/'.join(fileDir)
-  sys.path.append(new_path)
+  code_path = '/'.join(fileDir)
+  sys.path.append(code_path)  
 
   import utils
   import post_process
-
   import argparse
-
+  import numpy as np
+  import math
+  from vtk import vtkPolyDataWriter
+  from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
   # datastructures
   from pytorch3d.structures import Meshes
 
@@ -101,21 +98,26 @@ def ImportModules():
   else:
     device = torch.device("cpu") 
 
-  return device
 
 def main(surf,out,rot,res,unet_model,scal):
-  device = ImportModules()
+  #if not os.path.isfile(f'{code_path}/process.log'):
+
+
+  with open(f'{code_path}/process.log','w') as log_f:
+    # clear log file
+    log_f.truncate(0)
+  progress = 0
+
   # Initialize a perspective camera.
   cameras = FoVPerspectiveCameras(device=device)
   image_size = res
+
   # We will also create a Phong renderer. This is simpler and only needs to render one face per pixel.
   raster_settings = RasterizationSettings(
       image_size=image_size, 
       blur_radius=0, 
       faces_per_pixel=1, 
   )
-  # We can add a point light in front of the object. 
-
   lights = AmbientLights(device=device)
   rasterizer = MeshRasterizer(
           cameras=cameras, 
@@ -126,7 +128,6 @@ def main(surf,out,rot,res,unet_model,scal):
       shader=HardPhongShader(device=device, cameras=cameras, lights=lights)
   )
   num_classes = 34
-  # create UNet
 
   model = monai.networks.nets.UNet(
       spatial_dims=2,
@@ -185,6 +186,10 @@ def main(surf,out,rot,res,unet_model,scal):
         for y in range (image_size): # Browse pixel by pixel
             array_faces[:,pix_to_face[x,y]] += outputs_softmax[...,x,y]
 
+    progress += 1
+    with open(f'{code_path}/process.log','r+') as log_f:
+      log_f.write(str(progress))
+
     
   
 
@@ -212,13 +217,14 @@ def main(surf,out,rot,res,unet_model,scal):
   # Remove Islands
   for label in tqdm(range(num_classes),desc = 'Removing islands'):
     post_process.RemoveIslands(surf, vtk_id, label, 200,ignore_neg1 = True)  # adds -1 labels to isolated points: removed later
-
+    progress += 1
+  
   array = surf.GetPointData().GetScalars("PredictedID") 
 
   unique, counts  = np.unique(array, return_counts = True)
 
   out_filename = out
-  polydatawriter = vtk.vtkPolyDataWriter()
+  polydatawriter = vtkPolyDataWriter()
   polydatawriter.SetFileName(out_filename)
   polydatawriter.SetInputData(surf)
   polydatawriter.Write()
@@ -254,7 +260,6 @@ if __name__ == "__main__":
   if len (sys.argv) < 7:
     print("Usage: CrownSegmentationcli <surf> <out> <rot> <res> <model> <scal>")
     sys.exit (1)
-  if sys.argv[1] == '-1':
-    InstallDependencies()
-  else:
+
+  if sys.argv[1] != '-1':
     main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6])

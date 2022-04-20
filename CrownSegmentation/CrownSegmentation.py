@@ -96,6 +96,12 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.inputChoice = InputChoice.VTK
     self.lNodes = []
     self.MRMLNode = None
+    fileDir = os.path.dirname(os.path.abspath(__file__)).split('/')
+    fileDir[-1] = 'seg_code'
+    code_path = '/'.join(fileDir)
+    self.log_path = f'{code_path}/process.log' 
+    self.time_log = 0 # for progress bar
+    self.progress = 0
 
 
   def setup(self):
@@ -150,6 +156,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.predictedIdLineEdit.textChanged.connect(self.onEditPredictedIdLine)
     self.ui.resolutionComboBox.currentTextChanged.connect(self.onResolutionChanged)
     self.ui.installProgressBar.setEnabled(False)
+    self.ui.installSuccessLabel.setHidden(True)
 
     # Outputs 
     self.ui.browseOutputButton.connect('clicked(bool)',self.onBrowseOutputButton)
@@ -287,9 +294,22 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
 
   def onProcessUpdate(self,caller,event):
-    #print(f"caller.GetProgress(): {caller.GetProgress()}")
-    # print(f"event: {event}")
+    # check log file
+    if os.path.isfile(self.log_path):
+      time = os.path.getmtime(self.log_path)
+      if time != self.time_log:
+        # if progress was made
+        self.time_log = time
+        self.progress += 1
+        progressbar_value = self.progress/(self.rotation+2)*100
+        print(f'progressbar value {progressbar_value}')
+        if progressbar_value < 100 :
+          self.ui.progressBar.setValue(progressbar_value)
+        else:
+          self.ui.progressBar.setValue(99)
+
     if self.logic.cliNode.GetStatus() & self.logic.cliNode.Completed:
+      # process complete
       self.ui.applyChangesButton.setEnabled(True)
       self.ui.resetButton.setEnabled(True)
       self.ui.progressLabel.setHidden(False)         
@@ -298,24 +318,27 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       self.ui.progressBar.setHidden(True)
       self.ui.progressLabel.setHidden(True)
 
-      if os.path.isfile(self.outputFile): # if output file is found
-        print('PROCESS DONE.')
-        self.ui.doneLabel.setHidden(False)
-        self.ui.openOutButton.setHidden(False) 
-
-      else: # if no output file: error
-        print ('Error: Output file was not found.') 
+      if self.logic.cliNode.GetStatus() & self.logic.cliNode.ErrorsMask:
+        # error
+        errorText = self.logic.cliNode.GetErrorText()
+        print("CLI execution failed: \n \n" + errorText)
         msg = qt.QMessageBox()
-        msg.setText("Output file was not found.\nThere may have been an error during prediction.")
+        msg.setText(f'There was an error during the process:\n \n {errorText} ')
         msg.setWindowTitle("Error")
         msg.exec_()
 
-  def onProcessStarted(self):
+      else:
+        # success
+        print('PROCESS DONE.')
+        print(self.logic.cliNode.GetOutputText())
+        self.ui.doneLabel.setHidden(False)
+        self.ui.openOutButton.setHidden(False) 
 
+  def onProcessStarted(self):
     self.ui.cancelButton.setHidden(False)
     self.ui.cancelButton.setEnabled(True)
     self.ui.resetButton.setEnabled(False)
-    self.ui.progressBar.setRange(0,0)
+    #self.ui.progressBar.setRange(0,0)
     self.ui.progressBar.setEnabled(True)
     self.ui.progressBar.setHidden(False)
     self.ui.progressBar.setTextVisible(True)
@@ -509,14 +532,23 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     
 
   def onInstallationProgress(self,caller,event):
+
+    print(self.installLogic.cliNode.GetStatus())
     if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.Completed:
       if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.ErrorsMask:
         # error
         errorText = self.installLogic.cliNode.GetErrorText()
-        print("CLI execution failed: " + errorText)
+        print("CLI execution failed: \n \n" + errorText)
+
+        msg = qt.QMessageBox()
+        msg.setText(f'There was an error during the installation:\n \n {errorText} ')
+        msg.setWindowTitle("Error")
+        msg.exec_()
       else:
         # success
         print('SUCCESS')
+        print(self.installLogic.cliNode.GetOutputText())
+        self.ui.installSuccessLabel.setHidden(False)
       self.ui.installProgressBar.setRange(0,100)
       self.ui.installProgressBar.setEnabled(False)
       self.ui.dependenciesButton.setEnabled(True)
