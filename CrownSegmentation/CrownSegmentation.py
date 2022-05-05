@@ -533,7 +533,6 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
   def onInstallationProgress(self,caller,event):
 
-    print(self.installLogic.cliNode.GetStatus())
     if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.Completed:
       if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.ErrorsMask:
         # error

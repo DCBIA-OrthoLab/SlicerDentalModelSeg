@@ -7,10 +7,15 @@ import sys
 if sys.argv[1] == '-1':
   # Install dependencies
   print('Installing dependencies...')
+  pip_install('--upgrade pip')
   pip_install('tqdm==4.64.0') # tqdm
   pip_install('pandas==1.4.2') # pandas
-  pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
-  pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu111_pyt1101/download.html') # pytorch3d
+  #pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
+  pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+  pip_install('fvcore==0.1.5.post20220504')
+  pip_install('iopath==0.1.9')
+  #pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu111_pyt1101/download.html') # pytorch3d
+  pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html') # pytorch3d
   pip_install('itk==5.2.1.post1') # itk
   pip_install('monai==0.7.0') # monai
 
@@ -31,14 +36,14 @@ else:
     import torch
     pyt_version_str=torch.__version__.split("+")[0].replace(".", "")
     version_str="".join([f"py3{sys.version_info.minor}_cu",torch.version.cuda.replace(".",""),f"_pyt{pyt_version_str}"])  
-    if version_str != 'py39_cu111_pyt190':
+    if version_str != 'py39_cu113_pyt1110':
       raise ImportError
   except ImportError:
-    pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html')
+    pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
 
   try:
     import pytorch3d
-    if pytorch3d.__version__ != '0.6.0':
+    if pytorch3d.__version__ != '0.6.2':
       raise ImportError
   except ImportError:
     try:
@@ -49,8 +54,8 @@ else:
       pip_install('fvcore==0.1.5.post20220305')
       pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/{version_str}/download.html')
     except: # install correct torch version
-      pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') 
-      pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu111_pyt1101/download.html')
+      pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113') 
+      pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html')
 
   try:
     import itk
@@ -86,6 +91,7 @@ else:
   )
 
   # monai imports
+  import monai
   from monai.inferers import (sliding_window_inference,SimpleInferer)
   from monai.transforms import ToTensor
 
