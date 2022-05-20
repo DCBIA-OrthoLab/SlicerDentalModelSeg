@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>569</width>
-    <height>998</height>
+    <width>603</width>
+    <height>908</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -77,28 +77,25 @@
         </property>
        </spacer>
       </item>
+      <item row="7" column="1">
+       <widget class="QLineEdit" name="surfaceLineEdit">
+        <property name="font">
+         <font>
+          <pointsize>8</pointsize>
+          <italic>false</italic>
+         </font>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
       <item row="8" column="1">
        <widget class="QPushButton" name="browseSurfaceButton">
         <property name="text">
          <string>Select surface</string>
         </property>
        </widget>
-      </item>
-      <item row="9" column="0">
-       <spacer name="verticalSpacer_4">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>10</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="10" column="1">
-       <widget class="QComboBox" name="nodesComboBox"/>
       </item>
       <item row="11" column="0">
        <spacer name="verticalSpacer_2">
@@ -116,14 +113,14 @@
       <item row="14" column="0">
        <widget class="QLabel" name="label_3">
         <property name="text">
-         <string>Number of rotations: </string>
+         <string>Number of views: </string>
         </property>
        </widget>
       </item>
       <item row="14" column="1">
        <widget class="QSpinBox" name="rotationSpinBox">
         <property name="minimum">
-         <number>30</number>
+         <number>15</number>
         </property>
         <property name="maximum">
          <number>120</number>
@@ -132,20 +129,20 @@
          <number>0</number>
         </property>
         <property name="value">
-         <number>70</number>
+         <number>45</number>
         </property>
        </widget>
       </item>
       <item row="15" column="1">
        <widget class="QSlider" name="rotationSlider">
         <property name="minimum">
-         <number>30</number>
+         <number>15</number>
         </property>
         <property name="maximum">
          <number>120</number>
         </property>
         <property name="value">
-         <number>70</number>
+         <number>40</number>
         </property>
         <property name="tracking">
          <bool>true</bool>
@@ -251,18 +248,30 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="1">
-       <widget class="QLineEdit" name="surfaceLineEdit">
-        <property name="font">
-         <font>
-          <pointsize>8</pointsize>
-          <italic>false</italic>
-         </font>
+      <item row="9" column="1">
+       <widget class="qMRMLNodeComboBox" name="MRMLNodeComboBox">
+        <property name="enabled">
+         <bool>true</bool>
         </property>
-        <property name="text">
-         <string/>
+        <property name="nodeTypes">
+         <stringlist>
+          <string>vtkMRMLModelNode</string>
+         </stringlist>
         </property>
        </widget>
+      </item>
+      <item row="10" column="0">
+       <spacer name="verticalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>10</height>
+         </size>
+        </property>
+       </spacer>
       </item>
      </layout>
     </widget>
@@ -289,7 +298,10 @@
       <item row="0" column="1">
        <widget class="QComboBox" name="resolutionComboBox">
         <property name="currentText">
-         <string>256</string>
+         <string>320</string>
+        </property>
+        <property name="currentIndex">
+         <number>1</number>
         </property>
         <item>
          <property name="text">
@@ -318,17 +330,44 @@
         </item>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Name of predicted labels:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
        <widget class="QLineEdit" name="predictedIdLineEdit">
         <property name="text">
          <string>Universal_ID</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_6">
+      <item row="6" column="0">
+       <widget class="QPushButton" name="dependenciesButton">
         <property name="text">
-         <string>Name of predicted labels:</string>
+         <string>Install/Check dependencies</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QProgressBar" name="installProgressBar">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="value">
+         <number>0</number>
+        </property>
+        <property name="format">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QLabel" name="installSuccessLabel">
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600; color:#00aa00;&quot;&gt;Success! All dependencies have been correctly installed.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
        </widget>
       </item>
@@ -385,7 +424,7 @@
    <item>
     <widget class="QPushButton" name="applyChangesButton">
      <property name="text">
-      <string>Apply changes </string>
+      <string>Run prediction</string>
      </property>
     </widget>
    </item>
@@ -404,7 +443,7 @@
       <bool>false</bool>
      </property>
      <property name="format">
-      <string/>
+      <string>%p%</string>
      </property>
     </widget>
    </item>
@@ -484,6 +523,11 @@
    <extends>QWidget</extends>
    <header>ctkCollapsibleButton.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>qMRMLNodeComboBox</class>
+   <extends>QWidget</extends>
+   <header>qMRMLNodeComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>qMRMLWidget</class>

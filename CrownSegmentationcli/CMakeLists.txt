@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME predictioncli)
+set(MODULE_NAME CrownSegmentationcli)
 
 SlicerMacroBuildScriptedCLI(
   NAME ${MODULE_NAME}

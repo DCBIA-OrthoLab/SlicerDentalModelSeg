@@ -5,31 +5,54 @@ import logging
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
+from enum import Enum
 
-import itk
-import time
-import math
+
 import webbrowser
 import json
 
 #
-# prediction
+# CrownSegmentation
 #
 
-class prediction(ScriptedLoadableModule):
+class CrownSegmentation(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "prediction - FiboSeg" 
-    self.parent.categories = ["Examples"]  # TODO: set categories (folders where the module shows up in the module selector)
+    self.parent.title = "Crown Segmentation - FiboSeg" 
+    self.parent.categories = ["Segmentation"]  # TODO: set categories (folders where the module shows up in the module selector)
     self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-    self.parent.contributors = ["Mathieu Leclercq"]  # TODO: replace with "Firstname Lastname (Organization)"
+    self.parent.contributors = ["Mathieu Leclercq (University of North Carolina)", 
+    "Juan Carlos Prieto (University of North Carolina)",
+    "Martin Styner (University of North Carolina)",
+    "Lucia Cevidanes (University of Michigan)",
+    "Beatriz Paniagua (Kitware)",
+    "Connor Bowley (Kitware)",
+    "Antonio Ruellas (University of Michigan)",
+    "Marcela Gurgel (University of Michigan)",
+    "Marilia Yatabe (University of Michigan)",
+    "Jonas Bianchi (University of Michigan)"]  # TODO: replace with "Firstname Lastname (Organization)"
     # TODO: update with short description of the module and a link to online module documentation
     self.parent.helpText = """
-This is an example of scripted loadable module bundled in an extension.
+This extension provides a GUI for the deep learning method for jaw segmentation that we developed. 
+The dental crowns are segmented according to the <a href="https://en.wikipedia.org/wiki/Universal_Numbering_System">Universal Number System</a>. <br> <br>
+
+
+Running the module : <br> 
+- The input file must be a .vtk file of a lower or upper jaw. The model works better with models of jaws with no wisdom teeth. You can find examples in the "Examples" folder.
+Number of views: this sets the number of 2D views used for one prediction. A low number takes less time to compute, but results can be inaccurate.<br> <br>
+
+- Model for segmentation: this is the path for the neural network model. Resolution: This sets the resolution of the 2D views. 320 px is recommended. 
+Name of predicted labels: this is the name the array with the predicted labels on the output vtk file.   <br> <br> 
+
+- To visualize the results, open the output file and set scalars to "visible" and select the correct scalar in Slicer's "Models" module. <br><br>
+
+When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".<br> <br> 
+
+More help can be found on the <a href="https://github.com/MathieuLeclercq/SlicerJawSegmentation">Github repository</a> for the extension.
 """
     # TODO: replace with organization, grant and thanks
     self.parent.acknowledgementText = """
@@ -39,10 +62,14 @@ and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR0132
 
 
 #
-# predictionWidget
+# CrownSegmentationWidget
 #
 
-class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+class InputChoice(Enum):
+  VTK = 0
+  MRML_NODE = 1
+
+class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   """Uses ScriptedLoadableModuleWidget base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
@@ -66,12 +93,19 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.resolution = 256
     self.predictedId = ""
     self.rotation = None
-    self.inputChoice = 0 #  0: vtk, 1: mrml node
+    self.inputChoice = InputChoice.VTK
     self.lNodes = []
     self.MRMLNode = None
+    fileDir = os.path.dirname(os.path.abspath(__file__)).split('/')
+    fileDir[-1] = 'seg_code'
+    code_path = '/'.join(fileDir)
+    self.log_path = f'{code_path}/process.log' 
+    self.time_log = 0 # for progress bar
+    self.progress = 0
 
 
   def setup(self):
+    self.removeObservers()
     """
     Called when the user opens the module the first time and the widget is initialized.
     """
@@ -79,7 +113,7 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     # Load widget from .ui file (created by Qt Designer).
     # Additional widgets can be instantiated manually and added to self.layout.
-    uiWidget = slicer.util.loadUI(self.resourcePath('UI/prediction.ui'))
+    uiWidget = slicer.util.loadUI(self.resourcePath('UI/CrownSegmentation.ui'))
     self.layout.addWidget(uiWidget)
     self.ui = slicer.util.childWidgetVariables(uiWidget)
 
@@ -91,7 +125,7 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     # Create logic class. Logic implements all computations that should be possible to run
     # in batch mode, without a graphical user interface.
-    self.logic = predictionLogic()
+    self.logic = CrownSegmentationLogic()
 
     # Connections
 
@@ -100,7 +134,9 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
     # UI elements
-      
+    
+    self.ui.dependenciesButton.connect('clicked(bool)',self.checkDependencies)
+
     # Inputs
     self.ui.applyChangesButton.connect('clicked(bool)',self.onApplyChangesButton)
     self.ui.rotationSpinBox.valueChanged.connect(self.onRotationSpinbox)
@@ -110,15 +146,17 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.surfaceLineEdit.textChanged.connect(self.onEditSurfaceLine)
     self.ui.modelLineEdit.textChanged.connect(self.onEditModelLine)    
     self.ui.githubButton.connect('clicked(bool)',self.onGithubButton)
-    #self.ui.browseCodeButton.connect('clicked(bool)',self.onBrowseCodeButton)
-    #self.ui.codeLineEdit.textChanged.connect(self.onEditCodeLine)
     self.ui.surfaceComboBox.currentTextChanged.connect(self.onSurfaceModeChanged)
-    self.ui.nodesComboBox.currentTextChanged.connect(self.onNodeChanged)
+    self.ui.MRMLNodeComboBox.setMRMLScene(slicer.mrmlScene)
+    self.ui.MRMLNodeComboBox.currentNodeChanged.connect(self.onNodeChanged)
 
 
     # Advanced 
+    self.ui.advancedCollapsibleButton.collapsed = 0 # Set to 1
     self.ui.predictedIdLineEdit.textChanged.connect(self.onEditPredictedIdLine)
     self.ui.resolutionComboBox.currentTextChanged.connect(self.onResolutionChanged)
+    self.ui.installProgressBar.setEnabled(False)
+    self.ui.installSuccessLabel.setHidden(True)
 
     # Outputs 
     self.ui.browseOutputButton.connect('clicked(bool)',self.onBrowseOutputButton)
@@ -133,7 +171,7 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.openOutButton.setHidden(True)
     self.ui.cancelButton.setHidden(True)
     self.ui.doneLabel.setHidden(True)
-    self.ui.nodesComboBox.setHidden(True)
+    self.ui.MRMLNodeComboBox.setHidden(True)
 
     #initialize variables
     self.model = self.ui.modelLineEdit.text
@@ -141,10 +179,10 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.outputFolder = self.ui.outputLineEdit.text
     self.outputFile = self.ui.outputLineEdit.text + self.ui.outputFileLineEdit.text
     self.predictedId = self.ui.predictedIdLineEdit.text
-    self.resolution = self.ui.resolutionComboBox.currentText
+    self.resolution = int(self.ui.resolutionComboBox.currentText)
     self.rotation = self.ui.rotationSlider.value
-    #self.codePath = self.ui.codeLineEdit.text
-
+    self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
+    #print(self.MRMLNode.GetName())
 
     # Make sure parameter node is initialized (needed for module reload)
     self.initializeParameterNode()
@@ -256,7 +294,22 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
   def onProcessUpdate(self,caller,event):
+    # check log file
+    if os.path.isfile(self.log_path):
+      time = os.path.getmtime(self.log_path)
+      if time != self.time_log:
+        # if progress was made
+        self.time_log = time
+        self.progress += 1
+        progressbar_value = self.progress/(self.rotation+2)*100
+        print(f'progressbar value {progressbar_value}')
+        if progressbar_value < 100 :
+          self.ui.progressBar.setValue(progressbar_value)
+        else:
+          self.ui.progressBar.setValue(99)
+
     if self.logic.cliNode.GetStatus() & self.logic.cliNode.Completed:
+      # process complete
       self.ui.applyChangesButton.setEnabled(True)
       self.ui.resetButton.setEnabled(True)
       self.ui.progressLabel.setHidden(False)         
@@ -265,24 +318,27 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       self.ui.progressBar.setHidden(True)
       self.ui.progressLabel.setHidden(True)
 
-      if os.path.isfile(self.outputFile): # if output file is found
-        print('PROCESS DONE.')
-        self.ui.doneLabel.setHidden(False)
-        self.ui.openOutButton.setHidden(False) 
-
-      else: # if no output file: error
-        print ('Error: Output file was not found.') 
+      if self.logic.cliNode.GetStatus() & self.logic.cliNode.ErrorsMask:
+        # error
+        errorText = self.logic.cliNode.GetErrorText()
+        print("CLI execution failed: \n \n" + errorText)
         msg = qt.QMessageBox()
-        msg.setText("Output file was not found.\nThere may have been an error during prediction.")
+        msg.setText(f'There was an error during the process:\n \n {errorText} ')
         msg.setWindowTitle("Error")
         msg.exec_()
 
-  def onProcessStarted(self):
+      else:
+        # success
+        print('PROCESS DONE.')
+        print(self.logic.cliNode.GetOutputText())
+        self.ui.doneLabel.setHidden(False)
+        self.ui.openOutButton.setHidden(False) 
 
+  def onProcessStarted(self):
     self.ui.cancelButton.setHidden(False)
     self.ui.cancelButton.setEnabled(True)
     self.ui.resetButton.setEnabled(False)
-    self.ui.progressBar.setRange(0,0)
+    #self.ui.progressBar.setRange(0,0)
     self.ui.progressBar.setEnabled(True)
     self.ui.progressBar.setHidden(False)
     self.ui.progressBar.setTextVisible(True)
@@ -300,31 +356,38 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
   def onApplyChangesButton(self):
-    print(self.inputChoice)
-    if (self.inputChoice or os.path.isfile(self.surfaceFile))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
+    print(self.inputChoice.name)
+    if ((self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is not None) or os.path.isfile(self.surfaceFile))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
       self.ui.applyChangesButton.setEnabled(False)
       self.ui.progressBar.setEnabled(True)
-      if self.inputChoice == 0:
-        self.logic = predictionLogic(self.surfaceFile,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
-      else:
+      if self.inputChoice is InputChoice.VTK:
+        self.logic = CrownSegmentationLogic(self.surfaceFile,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
+      else: # MRML node
         filename = self.writeVTKFromNode()
-        self.logic = predictionLogic(filename,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
+        self.logic = CrownSegmentationLogic(filename,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
 
       self.ui.doneLabel.setHidden('True')
       self.ui.openOutButton.setHidden('True')
       self.logic.process()
-      self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
+      self.processObserver = self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
       self.onProcessStarted()
 
 
-    else:
-      print('error')
+    else:  # Error
+      print('Error.')
       msg = qt.QMessageBox()
-      if not(os.path.isfile(self.surfaceFile)):        
+      if self.inputChoice is InputChoice.VTK and not(os.path.isfile(self.surfaceFile)):        
         msg.setText("Surface directory : \nIncorrect path.")
         print('Error: Incorrect path for surface directory.')
         self.ui.surfaceLineEdit.setText('')
         print(f'surface folder : {self.surfaceFile}')
+
+
+      elif self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is None:        
+        msg.setText("Input surface : \nPlease select a MRML node.")
+        print('Error: No MRML node was selected.')
+        self.ui.surfaceLineEdit.setText('')
+        print(f'MRML node : {self.MRMLNode}')
      
       elif not(os.path.isdir(self.outputFolder)):
         msg.setText("Output directory : \nIncorrect path.")
@@ -337,6 +400,9 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         print('Error: Incorrect path for model.')
         self.ui.modelLineEdit.setText('')
         print(f'model path: {self.model}')
+
+      else:
+        msg.setText('Unknown error.')
 
       msg.setWindowTitle("Error")
       msg.exec_()
@@ -353,6 +419,8 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.progressBar.setValue(0)
     self.ui.doneLabel.setHidden(True)
     self.ui.surfaceComboBox.setCurrentIndex(0)
+    self.removeObservers()
+    
 
   def onCancel(self):
     self.logic.cliNode.Cancel()
@@ -362,6 +430,7 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.progressBar.setRange(0,100)
     self.ui.progressLabel.setHidden(True)
     self.ui.cancelButton.setEnabled(False)
+    self.removeObservers()
 
     
     print("Process successfully cancelled.")
@@ -395,20 +464,6 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       print(self.outputFile)
     #print(f'Output directory : {self.outputFile}')      
 
-  """
-  def onBrowseCodeButton(self):
-    newCodeFolder = qt.QFileDialog.getExistingDirectory(self.parent, "Select a directory")
-    if newCodeFolder != '':
-      if newCodeFolder[-1] != "/":
-        newCodeFolder += '/'
-      self.codePath = newCodeFolder
-      print(self.codePath)
-      self.ui.codeLineEdit.setText(self.codePath)
-
-
-  def onEditCodeLine(self):
-    self.codePath = self.ui.codeLineEdit.text
-  """
 
   def onEditModelLine(self):
     self.model = self.ui.modelLineEdit.text
@@ -439,35 +494,24 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     choice = self.ui.surfaceComboBox.currentText
     if choice == 'Select .vtk file':
-      self.inputChoice = 0
+      self.inputChoice = InputChoice.VTK
       self.ui.surfaceLineEdit.setHidden(False)
       self.ui.browseSurfaceButton.setHidden(False)
-      self.ui.nodesComboBox.setHidden(True)
       self.surfaceFile = self.ui.surfaceLineEdit.text
     else:
-      self.inputChoice = 1
+      self.inputChoice = InputChoice.MRML_NODE
       self.ui.surfaceLineEdit.setHidden(True)
       self.ui.browseSurfaceButton.setHidden(True)
-      nodes_class = slicer.util.getNodesByClass("vtkMRMLModelNode")
-      self.lNodes = []
-      for item in nodes_class:
-        if item.GetName() != 'Slice Volume Slice':
-          self.lNodes.append(item)
-
-      for item in self.lNodes:
-        self.ui.nodesComboBox.addItem(item.GetName())
-
-
-
-      self.ui.nodesComboBox.setHidden(False)
+      self.ui.MRMLNodeComboBox.setHidden(False)
 
   def onNodeChanged(self):
-    self.MRMLNode = self.lNodes[self.ui.nodesComboBox.currentIndex]
-    print(f'node choice: {self.MRMLNode.GetName()}')
+    self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
+    if self.MRMLNode is not None:
+      print(self.MRMLNode.GetName())
+
 
   def writeVTKFromNode(self):
-    poly = self.MRMLNode.GetPolyData()
-    
+    poly = self.MRMLNode.GetPolyData()    
     filename = self.outputFile[0:-4]+"_input.vtk"
     print(filename)
     polydatawriter = vtk.vtkPolyDataWriter()
@@ -475,13 +519,46 @@ class predictionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     polydatawriter.SetInputData(poly)
     polydatawriter.Write()
     return filename
-      
+
+  def checkDependencies(self): #TODO: ALSO CHECK FOR CUDA 
+
+    self.ui.dependenciesButton.setEnabled(False)
+    self.ui.applyChangesButton.setEnabled(False)
+    self.ui.installProgressBar.setEnabled(True)
+    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0)
+    self.installLogic.process()
+    self.ui.installProgressBar.setRange(0,0)
+    self.installObserver = self.installLogic.cliNode.AddObserver('ModifiedEvent',self.onInstallationProgress)
+    
+
+  def onInstallationProgress(self,caller,event):
+
+    if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.Completed:
+      if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.ErrorsMask:
+        # error
+        errorText = self.installLogic.cliNode.GetErrorText()
+        print("CLI execution failed: \n \n" + errorText)
+
+        msg = qt.QMessageBox()
+        msg.setText(f'There was an error during the installation:\n \n {errorText} ')
+        msg.setWindowTitle("Error")
+        msg.exec_()
+      else:
+        # success
+        print('SUCCESS')
+        print(self.installLogic.cliNode.GetOutputText())
+        self.ui.installSuccessLabel.setHidden(False)
+      self.ui.installProgressBar.setRange(0,100)
+      self.ui.installProgressBar.setEnabled(False)
+      self.ui.dependenciesButton.setEnabled(True)
+      self.ui.applyChangesButton.setEnabled(True)
+
 
 #
-# predictionLogic
+# CrownSegmentationLogic
 #
 
-class predictionLogic(ScriptedLoadableModuleLogic):
+class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
   """
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
@@ -501,6 +578,7 @@ class predictionLogic(ScriptedLoadableModuleLogic):
     self.nbOperation = 0
     self.progress = 0
     self.cliNode = None
+    self.installCliNode = None
     print(f"model: {self.model}")
     print(f'surfaceFile : {self.surfaceFile}')
     print(f'outptutfile : {self.outputFile}')
@@ -523,72 +601,68 @@ class predictionLogic(ScriptedLoadableModuleLogic):
     parameters ['resolution'] = self.resolution
     parameters ['model'] = self.model
     parameters ['predictedId'] = self.predictedId
+    print ('parameters : ', parameters)
     #parameters ['codePath'] = self.codePath
-    env = slicer.util.startupEnvironment()
-    print('\n\n\n\n')
-    #print ('parameters : ', parameters)
 
-    with open('env.json', 'w') as convert_file:
-      convert_file.truncate(0)
-      convert_file.write(json.dumps(env))
-    
-    flybyProcess = slicer.modules.predictioncli
+    flybyProcess = slicer.modules.crownsegmentationcli
+
+
     self.cliNode = slicer.cli.run(flybyProcess,None, parameters)    
     return flybyProcess
 
 
 #
-# predictionTest
+# CrownSegmentationTest
 #
 
-class predictionTest(ScriptedLoadableModuleTest):
-  """
-  This is the test case for your scripted module.
-  Uses ScriptedLoadableModuleTest base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
+# class CrownSegmentationTest(ScriptedLoadableModuleTest):
+#   """
+#   This is the test case for your scripted module.
+#   Uses ScriptedLoadableModuleTest base class, available at:
+#   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+#   """
 
-  def setUp(self):
-    """ Do whatever is needed to reset the state - typically a scene clear will be enough.
-    """
-    slicer.mrmlScene.Clear()
+#   def setUp(self):
+#     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
+#     """
+#     slicer.mrmlScene.Clear()
 
-  def runTest(self):
-    """Run as few or as many tests as needed here.
-    """
-    self.setUp()
-    self.test_prediction1()
+#   def runTest(self):
+#     """Run as few or as many tests as needed here.
+#     """
+#     self.setUp()
+#     self.test_CrownSegmentation1()
 
-  def test_prediction1(self):
-    """ Ideally you should have several levels of tests.  At the lowest level
-    tests should exercise the functionality of the logic with different inputs
-    (both valid and invalid).  At higher levels your tests should emulate the
-    way the user would interact with your code and confirm that it still works
-    the way you intended.
-    One of the most important features of the tests is that it should alert other
-    developers when their changes will have an impact on the behavior of your
-    module.  For example, if a developer removes a feature that you depend on,
-    your test should break so they know that the feature is needed.
-    """
+#   def test_CrownSegmentation1(self):
+#     """ Ideally you should have several levels of tests.  At the lowest level
+#     tests should exercise the functionality of the logic with different inputs
+#     (both valid and invalid).  At higher levels your tests should emulate the
+#     way the user would interact with your code and confirm that it still works
+#     the way you intended.
+#     One of the most important features of the tests is that it should alert other
+#     developers when their changes will have an impact on the behavior of your
+#     module.  For example, if a developer removes a feature that you depend on,
+#     your test should break so they know that the feature is needed.
+#     """
 
-    self.delayDisplay("Starting the test")
+#     self.delayDisplay("Starting the test")
 
-    # Get/create input data
+#     # Get/create input data
 
-    import SampleData
-    registerSampleData()
-    inputVolume = SampleData.downloadSample('prediction1')
-    self.delayDisplay('Loaded test data set')
+#     import SampleData
+#     registerSampleData()
+#     inputVolume = SampleData.downloadSample('CrownSegmentation1')
+#     self.delayDisplay('Loaded test data set')
 
-    inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-    self.assertEqual(inputScalarRange[0], 0)
-    self.assertEqual(inputScalarRange[1], 695)
+#     inputScalarRange = inputVolume.GetImageData().GetScalarRange()
+#     self.assertEqual(inputScalarRange[0], 0)
+#     self.assertEqual(inputScalarRange[1], 695)
 
-    outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-    threshold = 100
+#     outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+#     threshold = 100
 
-    # Test the module logic
+#     # Test the module logic
 
-    # logic = predictionLogic()
+#     # logic = CrownSegmentationLogic()
 
-    self.delayDisplay('Test passed')
+#     self.delayDisplay('Test passed')

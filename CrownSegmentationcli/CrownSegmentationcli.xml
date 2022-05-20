@@ -2,10 +2,10 @@
 <executable>
   <category>Examples</category>
   <index>0</index>
-  <title>predictioncli</title>
+  <title>CrownSegmentationcli</title>
   <description><![CDATA[CLI module that can be built into an extension]]></description>
   <version>0.1.0.</version>
-  <documentation-url>https://github.com/username/project</documentation-url>
+  <documentation-url>https://github.com/MathieuLeclercq/SlicerJawSegmentation/</documentation-url>
   <license/>
   <contributor>Mathieu Leclercq</contributor>
   <acknowledgements><![CDATA[...]]></acknowledgements>
