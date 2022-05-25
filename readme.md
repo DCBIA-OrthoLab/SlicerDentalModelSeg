@@ -5,15 +5,13 @@ This extension aims to provide a GUI for the deep learning method for surface se
 
 
 
- *NB: The extension was tested with these specific versions, however it may work with more recent ones.
-Additional packages may be required. you can install them with "pip install ... ".  No specific version should be required for these packages.*
 
 # How to run the extension
  
 
 ## Running the module
 
- - The input file must be a .vtk file of a lower or upper jaw. The model
+ - The input file must be a .vtk file of a IOS scan for a lower or upper jaw, or a folder containing .vtk files of jaws. The model
    works better with models of jaws with no wisdom teeth. You can find
    examples in the "Examples" folder.
  - Number of views: this sets the number of 2D views used for one
