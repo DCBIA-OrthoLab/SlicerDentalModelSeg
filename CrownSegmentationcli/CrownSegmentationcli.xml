@@ -17,15 +17,15 @@
     <description><![CDATA[Input/output parameters]]></description>
 
     <string>
-      <name>surfaceFile</name>
-      <label>surfaceFile</label>
+      <name>input</name>
+      <label>input</label>
       <index>0</index>
       <description>Path for the surface file.</description>
     </string>
 
     <string>
-      <name>outputFile</name>
-      <label>outputFile</label>
+      <name>output</name>
+      <label>output</label>
       <index>1</index>
       <description>Path for output file.</description>
     </string>
@@ -57,6 +57,14 @@
       <index>5</index>
       <description>Name of the new scalar.</description>
     </string>
+
+
+    <boolean>
+      <name>sepOutputs</name>
+      <label>sepOutputs</label>
+      <index>6</index>
+      <description>Multiple output files.</description>
+    </boolean>
 
   </parameters>
 </executable>

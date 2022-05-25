@@ -688,14 +688,15 @@ def ExtractFiber(surf, list_random_id) :
 
     return tubefilter
 
-def Write(vtkdata, output_name):
+def Write(vtkdata, output_name, print_out = True):
     outfilename = output_name
-    print("Writting:", outfilename)
+    if print_out == True:
+        print("Writing:", outfilename)
     polydatawriter = vtk.vtkPolyDataWriter()
     polydatawriter.SetFileName(outfilename)
     polydatawriter.SetInputData(vtkdata)
     polydatawriter.Write()
-
+    
 def json2vtk(jsonfile,number_landmarks,radius_sphere,outdir):
     
     json_file = pd.read_json(jsonfile)

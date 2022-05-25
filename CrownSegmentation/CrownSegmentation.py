@@ -1,5 +1,6 @@
 import os
 import sys
+import glob
 import unittest
 import logging
 import vtk, qt, ctk, slicer
@@ -68,6 +69,7 @@ and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR0132
 class InputChoice(Enum):
   VTK = 0
   MRML_NODE = 1
+  FOLDER = 2
 
 class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   """Uses ScriptedLoadableModuleWidget base class, available at:
@@ -85,11 +87,12 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self._parameterNode = None
     self._updatingGUIFromParameterNode = False
     self.fileName = ""
-    self.surfaceFile = ""
+    self.input = ""
     self.outputFolder = ""
-    self.outputFile  = ""
+    self.output  = ""
     self.lArrays = []
     self.model = "" 
+    self.nbFiles = 1
     self.resolution = 256
     self.predictedId = ""
     self.rotation = None
@@ -142,17 +145,21 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.rotationSpinBox.valueChanged.connect(self.onRotationSpinbox)
     self.ui.rotationSlider.valueChanged.connect(self.onRotationSlider)
     self.ui.browseSurfaceButton.connect('clicked(bool)',self.onBrowseSurfaceButton)
+    self.ui.inputFolderPushButton.connect('clicked(bool)',self.onBrowseInputFolderButton)
     self.ui.browseModelButton.connect('clicked(bool)',self.onBrowseModelButton)
     self.ui.surfaceLineEdit.textChanged.connect(self.onEditSurfaceLine)
+    self.ui.inputFolderLineEdit.textChanged.connect(self.onEditInputFolderLine)
     self.ui.modelLineEdit.textChanged.connect(self.onEditModelLine)    
     self.ui.githubButton.connect('clicked(bool)',self.onGithubButton)
     self.ui.surfaceComboBox.currentTextChanged.connect(self.onSurfaceModeChanged)
     self.ui.MRMLNodeComboBox.setMRMLScene(slicer.mrmlScene)
     self.ui.MRMLNodeComboBox.currentNodeChanged.connect(self.onNodeChanged)
-
+    self.ui.MRMLNodeComboBox.setHidden(True)
+    self.ui.inputFolderLineEdit.setHidden(True)
+    self.ui.inputFolderPushButton.setHidden(True)
 
     # Advanced 
-    self.ui.advancedCollapsibleButton.collapsed = 0 # Set to 1
+    self.ui.advancedCollapsibleButton.collapsed = 1 # Set to 1
     self.ui.predictedIdLineEdit.textChanged.connect(self.onEditPredictedIdLine)
     self.ui.resolutionComboBox.currentTextChanged.connect(self.onResolutionChanged)
     self.ui.installProgressBar.setEnabled(False)
@@ -162,22 +169,22 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.browseOutputButton.connect('clicked(bool)',self.onBrowseOutputButton)
     self.ui.outputLineEdit.textChanged.connect(self.onEditOutputLine)
     self.ui.outputFileLineEdit.textChanged.connect(self.onEditOutputLine)
-    self.ui.openOutButton.connect('clicked(bool)',self.onOutButton)
-
+    self.ui.openOutSurfButton.connect('clicked(bool)',self.onOpenOutSurfButton)
+    self.ui.openOutFolderButton.connect('clicked(bool)',self.onOpenOutFolderButton)
     self.ui.resetButton.connect('clicked(bool)',self.onReset)
     self.ui.cancelButton.connect('clicked(bool)', self.onCancel)
-
     self.ui.progressLabel.setHidden(True)
-    self.ui.openOutButton.setHidden(True)
+    self.ui.openOutSurfButton.setHidden(True)
+    self.ui.openOutFolderButton.setHidden(True)
     self.ui.cancelButton.setHidden(True)
     self.ui.doneLabel.setHidden(True)
-    self.ui.MRMLNodeComboBox.setHidden(True)
+    
 
     #initialize variables
     self.model = self.ui.modelLineEdit.text
-    self.surfaceFile = self.ui.surfaceLineEdit.text
+    self.input = self.ui.surfaceLineEdit.text
     self.outputFolder = self.ui.outputLineEdit.text
-    self.outputFile = self.ui.outputLineEdit.text + self.ui.outputFileLineEdit.text
+    self.output = self.ui.outputLineEdit.text + self.ui.outputFileLineEdit.text
     self.predictedId = self.ui.predictedIdLineEdit.text
     self.resolution = int(self.ui.resolutionComboBox.currentText)
     self.rotation = self.ui.rotationSlider.value
@@ -289,9 +296,275 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self._parameterNode.EndModify(wasModified)
 
 
+
+  ###
+  ### INPUTS
+  ###
+
+  def onBrowseSurfaceButton(self):
+    newsurfaceFile = qt.QFileDialog.getOpenFileName(self.parent, "Select a surface",'',".vtk file (*.vtk)")
+    if newsurfaceFile != '':
+      self.input = newsurfaceFile
+      self.ui.surfaceLineEdit.setText(self.input)
+    #print(f'Surface directory : {self.surfaceFile}')
+
+
+  def onBrowseInputFolderButton(self):
+    newInputFolder = qt.QFileDialog.getExistingDirectory(self.parent, "Select a directory")
+    if newInputFolder != '':
+      self.input = newInputFolder
+      print(self.input)
+      self.ui.inputFolderLineEdit.setText(self.input)
+    #print(f'Output directory : {self.output}')   
+
+
+  def onBrowseModelButton(self):
+    newModel = qt.QFileDialog.getOpenFileName(self.parent, "Select a model")
+    if newModel != '':
+      self.model = newModel
+      self.ui.modelLineEdit.setText(self.model)
+    #print(f'Surface directory : {self.surfaceFile}')
+
+  def onGithubButton(self):
+    webbrowser.open('https://github.com/MathieuLeclercq/fly-by-cnn/blob/master/src/py/FiboSeg/best_metric_model_segmentation2d_array_v2_5.pth')
+
+
+  def onEditModelLine(self):
+    self.model = self.ui.modelLineEdit.text
+
+
+  def onEditSurfaceLine(self):
+    self.input = self.ui.surfaceLineEdit.text 
+
+
+  def onEditInputFolderLine(self):
+    self.input = self.ui.inputFolderLineEdit.text 
+
+  def onRotationSlider(self):
+    self.ui.rotationSpinBox.value = self.ui.rotationSlider.value
+    self.rotation = self.ui.rotationSlider.value
+
+  def onRotationSpinbox(self):
+    self.ui.rotationSlider.value = self.ui.rotationSpinBox.value
+    self.rotation = self.ui.rotationSlider.value
+
+  def onSurfaceModeChanged(self):
+    choice = self.ui.surfaceComboBox.currentText
+    self.input = ""
+    self.ui.MRMLNodeComboBox.setHidden(True)
+    self.ui.surfaceLineEdit.setHidden(True)
+    self.ui.browseSurfaceButton.setHidden(True)
+    self.ui.inputFolderLineEdit.setHidden(True)
+    self.ui.inputFolderPushButton.setHidden(True)
+    self.ui.outputFileLineEdit.setHidden(False)
+    self.ui.outputFileLabel.setHidden(False)
+
+
+    if choice == 'Select .vtk file':
+      self.inputChoice = InputChoice.VTK
+      self.ui.surfaceLineEdit.setHidden(False)
+      self.ui.browseSurfaceButton.setHidden(False)
+      self.input = self.ui.surfaceLineEdit.text
+    elif choice == 'Select MRMLModelNode':
+      self.inputChoice = InputChoice.MRML_NODE
+      self.ui.MRMLNodeComboBox.setHidden(False)
+    else: # Select folder 
+      self.inputChoice = InputChoice.FOLDER
+      self.ui.inputFolderLineEdit.setHidden(False)
+      self.ui.inputFolderPushButton.setHidden(False)
+      self.input = self.ui.inputFolderLineEdit.text
+      self.ui.outputFileLineEdit.setText("")
+      self.ui.outputFileLabel.setHidden(True)
+      self.ui.outputFileLineEdit.setHidden(True)
+
+
+
+
+  def onNodeChanged(self):
+    self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
+    if self.MRMLNode is not None:
+      print(self.MRMLNode.GetName())
+
+
+  def writeVTKFromNode(self):
+    poly = self.MRMLNode.GetPolyData()    
+    filename = self.output[0:-4]+"_input.vtk"
+    print(filename)
+    polydatawriter = vtk.vtkPolyDataWriter()
+    polydatawriter.SetFileName(filename)
+    polydatawriter.SetInputData(poly)
+    polydatawriter.Write()
+    return filename
+
+  ###
+  ### ADVANCED
+  ###
+
+
+  def onEditPredictedIdLine(self):
+    self.predictedId = self.ui.predictedIdLineEdit.text
+
+
   def onResolutionChanged(self):
     self.resolution = int(self.ui.resolutionComboBox.currentText)
 
+  def checkDependencies(self): #TODO: ALSO CHECK FOR CUDA 
+    self.ui.dependenciesButton.setEnabled(False)
+    self.ui.applyChangesButton.setEnabled(False)
+    self.ui.installProgressBar.setEnabled(True)
+    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0) # -1: flag so that CLI module knows it's only to install dependencies
+    self.installLogic.process()
+    self.ui.installProgressBar.setRange(0,0)
+    self.installObserver = self.installLogic.cliNode.AddObserver('ModifiedEvent',self.onInstallationProgress)
+    
+
+  def onInstallationProgress(self,caller,event):
+    if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.Completed:
+      if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.ErrorsMask:
+        # error
+        errorText = self.installLogic.cliNode.GetErrorText()
+        print("CLI execution failed: \n \n" + errorText)
+        msg = qt.QMessageBox()
+        msg.setText(f'There was an error during the installation:\n \n {errorText} ')
+        msg.setWindowTitle("Error")
+        msg.exec_()
+      else:
+        # success
+        print('SUCCESS')
+        print(self.installLogic.cliNode.GetOutputText())
+        self.ui.installSuccessLabel.setHidden(False)
+      self.ui.installProgressBar.setRange(0,100)
+      self.ui.installProgressBar.setEnabled(False)
+      self.ui.dependenciesButton.setEnabled(True)
+      self.ui.applyChangesButton.setEnabled(True)
+
+  ###
+  ### OUTPUTS
+  ###
+
+  def onOpenOutSurfButton(self):
+    print(self.output)
+    jaw_model = slicer.util.loadModel(self.output)
+
+  def onOpenOutFolderButton(self):
+    print(self.output)
+    webbrowser.open(self.output)
+
+  def onBrowseOutputButton(self):
+    newoutputFolder = qt.QFileDialog.getExistingDirectory(self.parent, "Select a directory")
+    if newoutputFolder != '':
+      if newoutputFolder[-1] != "/":
+        newoutputFolder += '/'
+      self.outputFolder = newoutputFolder
+      print(self.outputFolder)
+      self.ui.outputLineEdit.setText(self.outputFolder)
+      print(self.output)
+    #print(f'Output directory : {self.output}')   
+
+
+  def onEditOutputLine(self): # called when either output folder line or output file line is modified
+    self.outputFolder = self.ui.outputLineEdit.text
+    self.output = self.ui.outputLineEdit.text + self.ui.outputFileLineEdit.text
+  ###
+  ### PROCESS
+  ###
+
+
+
+  def onApplyChangesButton(self):
+
+    #if ((self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is not None) or os.path.isfile(self.input) or os.path.isdir(self.input))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
+    if not(os.path.isdir(self.outputFolder) and os.path.isfile(self.model)):
+      print('Error.')
+      msg = qt.QMessageBox()
+      if not(os.path.isdir(self.outputFolder)):
+        msg.setText("Output directory : \nIncorrect path.")
+        print('Error: Incorrect path for output directory.')
+        self.ui.outputLineEdit.setText('')
+        print(f'output folder : {self.outputFolder}')
+
+      elif not(os.path.isfile(self.model)):
+        msg.setText("Model : \nIncorrect path.")
+        print('Error: Incorrect path for model.')
+        self.ui.modelLineEdit.setText('')
+        print(f'model path: {self.model}')
+
+      else:
+        msg.setText('Unknown error.')
+
+      msg.setWindowTitle("Error")
+      msg.exec_()
+      return
+
+    elif not((self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is not None) or os.path.isfile(self.input) or os.path.isdir(self.input)):
+      print('Error.')
+      msg = qt.QMessageBox()
+      if self.inputChoice is InputChoice.VTK and not(os.path.isfile(self.surfaceFile)):        
+        msg.setText("Surface directory : \nIncorrect path.")
+        print('Error: Incorrect path for surface directory.')
+        self.ui.surfaceLineEdit.setText('')
+        print(f'surface folder : {self.surfaceFile}')
+
+      elif self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is None:        
+        msg.setText("Input surface : \nPlease select a MRML node.")
+        print('Error: No MRML node was selected.')
+        self.ui.surfaceLineEdit.setText('')
+        print(f'MRML node : {self.MRMLNode}')
+
+      else:
+        msg.setText('Unknown error.')
+
+      msg.setWindowTitle("Error")
+      msg.exec_()
+      return
+
+    else:
+      # Ready to start cli module
+      self.ui.applyChangesButton.setEnabled(False)
+      self.ui.progressBar.setEnabled(True)
+      if self.inputChoice is InputChoice.MRML_NODE: # MRML node
+        filename = self.writeVTKFromNode()
+        self.logic = CrownSegmentationLogic(filename,
+                                            self.output,
+                                            self.resolution, 
+                                            self.ui.rotationSpinBox.value,
+                                            self.model, 
+                                            self.predictedId,
+                                            self.ui.sepOutputsCheckbox.isChecked())
+
+      else: # input folder/file
+        self.logic = CrownSegmentationLogic(self.input,
+                                            self.output,
+                                            self.resolution, 
+                                            self.ui.rotationSpinBox.value,
+                                            self.model, 
+                                            self.predictedId, 
+                                            self.ui.sepOutputsCheckbox.isChecked())
+
+      
+      self.logic.process()
+      #self.processObserver = self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
+      self.addObserver(self.logic.cliNode,vtk.vtkCommand.ModifiedEvent,self.onProcessUpdate)
+      self.onProcessStarted()
+
+
+
+  def onProcessStarted(self):
+    self.ui.doneLabel.setHidden(True)
+    self.ui.openOutSurfButton.setHidden(True)
+    self.ui.cancelButton.setHidden(False)
+    self.ui.cancelButton.setEnabled(True)
+    self.ui.resetButton.setEnabled(False)
+    if os.path.isdir(self.input):
+      self.nbFiles = len(glob.glob(f"{self.input}/*.vtk"))
+    else:
+      self.nbFiles = 1
+    self.ui.progressBar.setValue(0)
+    self.progress = 0
+    self.ui.progressBar.setEnabled(True)
+    self.ui.progressBar.setHidden(False)
+    self.ui.progressBar.setTextVisible(True)
+    self.ui.progressLabel.setHidden(False)
 
   def onProcessUpdate(self,caller,event):
     # check log file
@@ -301,8 +574,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         # if progress was made
         self.time_log = time
         self.progress += 1
-        progressbar_value = self.progress/(self.rotation+2)*100
-        print(f'progressbar value {progressbar_value}')
+        progressbar_value = self.progress/((self.rotation+2) * self.nbFiles) * 100
+        #print(f'progressbar value {progressbar_value}')
         if progressbar_value < 100 :
           self.ui.progressBar.setValue(progressbar_value)
         else:
@@ -332,95 +605,24 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         print('PROCESS DONE.')
         print(self.logic.cliNode.GetOutputText())
         self.ui.doneLabel.setHidden(False)
-        self.ui.openOutButton.setHidden(False) 
-
-  def onProcessStarted(self):
-    self.ui.cancelButton.setHidden(False)
-    self.ui.cancelButton.setEnabled(True)
-    self.ui.resetButton.setEnabled(False)
-    #self.ui.progressBar.setRange(0,0)
-    self.ui.progressBar.setEnabled(True)
-    self.ui.progressBar.setHidden(False)
-    self.ui.progressBar.setTextVisible(True)
-    self.ui.progressLabel.setHidden(False)
-
-
-  def onOutButton(self):
-    print(self.outputFile)
-    jaw_model = slicer.util.loadModel(self.outputFile)
-    print(type(jaw_model))
-
-
-  def onGithubButton(self):
-    webbrowser.open('https://github.com/MathieuLeclercq/fly-by-cnn/blob/master/src/py/FiboSeg/best_metric_model_segmentation2d_array_v2_5.pth')
-
-
-  def onApplyChangesButton(self):
-    print(self.inputChoice.name)
-    if ((self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is not None) or os.path.isfile(self.surfaceFile))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
-      self.ui.applyChangesButton.setEnabled(False)
-      self.ui.progressBar.setEnabled(True)
-      if self.inputChoice is InputChoice.VTK:
-        self.logic = CrownSegmentationLogic(self.surfaceFile,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
-      else: # MRML node
-        filename = self.writeVTKFromNode()
-        self.logic = CrownSegmentationLogic(filename,self.outputFile,self.resolution, self.ui.rotationSpinBox.value,self.model, self.predictedId)
-
-      self.ui.doneLabel.setHidden('True')
-      self.ui.openOutButton.setHidden('True')
-      self.logic.process()
-      self.processObserver = self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
-      self.onProcessStarted()
-
-
-    else:  # Error
-      print('Error.')
-      msg = qt.QMessageBox()
-      if self.inputChoice is InputChoice.VTK and not(os.path.isfile(self.surfaceFile)):        
-        msg.setText("Surface directory : \nIncorrect path.")
-        print('Error: Incorrect path for surface directory.')
-        self.ui.surfaceLineEdit.setText('')
-        print(f'surface folder : {self.surfaceFile}')
-
-
-      elif self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is None:        
-        msg.setText("Input surface : \nPlease select a MRML node.")
-        print('Error: No MRML node was selected.')
-        self.ui.surfaceLineEdit.setText('')
-        print(f'MRML node : {self.MRMLNode}')
-     
-      elif not(os.path.isdir(self.outputFolder)):
-        msg.setText("Output directory : \nIncorrect path.")
-        print('Error: Incorrect path for output directory.')
-        self.ui.outputLineEdit.setText('')
-        print(f'output folder : {self.outputFolder}')
-
-      elif not(os.path.isfile(self.model)):
-        msg.setText("Model : \nIncorrect path.")
-        print('Error: Incorrect path for model.')
-        self.ui.modelLineEdit.setText('')
-        print(f'model path: {self.model}')
-
-      else:
-        msg.setText('Unknown error.')
-
-      msg.setWindowTitle("Error")
-      msg.exec_()
-
-      return
-
+        if os.path.isdir(self.output):
+          self.ui.openOutFolderButton.setHidden(False)
+        elif os.path.isfile(self.output):
+          self.ui.openOutSurfButton.setHidden(False) 
+        
   def onReset(self):
     self.ui.outputLineEdit.setText("")
     self.ui.surfaceLineEdit.setText("")
     self.ui.rotationSpinBox.value = 50
     self.ui.applyChangesButton.setEnabled(True)
     self.ui.progressLabel.setHidden(True)
-    self.ui.openOutButton.setHidden(True)
+    self.ui.openOutSurfButton.setHidden(True)
+    self.ui.openOutFolderButton.setHidden(True)
     self.ui.progressBar.setValue(0)
     self.ui.doneLabel.setHidden(True)
     self.ui.surfaceComboBox.setCurrentIndex(0)
-    self.removeObservers()
-    
+    self.ui.sepOutputsCheckbox.setChecked(False)
+    self.removeObservers()    
 
   def onCancel(self):
     self.logic.cliNode.Cancel()
@@ -430,128 +632,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.progressBar.setRange(0,100)
     self.ui.progressLabel.setHidden(True)
     self.ui.cancelButton.setEnabled(False)
-    self.removeObservers()
-
-    
+    self.removeObservers()    
     print("Process successfully cancelled.")
-
-
-  def onBrowseSurfaceButton(self):
-    newsurfaceFile = qt.QFileDialog.getOpenFileName(self.parent, "Select a surface",'',".vtk file (*.vtk)")
-    if newsurfaceFile != '':
-      self.surfaceFile = newsurfaceFile
-      self.ui.surfaceLineEdit.setText(self.surfaceFile)
-    #print(f'Surface directory : {self.surfaceFile}')
-
-
-  def onBrowseModelButton(self):
-    newModel = qt.QFileDialog.getOpenFileName(self.parent, "Select a model")
-    if newModel != '':
-      self.model = newModel
-      self.ui.modelLineEdit.setText(self.model)
-    #print(f'Surface directory : {self.surfaceFile}')
-
-
-
-  def onBrowseOutputButton(self):
-    newoutputFolder = qt.QFileDialog.getExistingDirectory(self.parent, "Select a directory")
-    if newoutputFolder != '':
-      if newoutputFolder[-1] != "/":
-        newoutputFolder += '/'
-      self.outputFolder = newoutputFolder
-      print(self.outputFolder)
-      self.ui.outputLineEdit.setText(self.outputFolder)
-      print(self.outputFile)
-    #print(f'Output directory : {self.outputFile}')      
-
-
-  def onEditModelLine(self):
-    self.model = self.ui.modelLineEdit.text
-
-
-  def onEditPredictedIdLine(self):
-    self.predictedId = self.ui.predictedIdLineEdit.text
-
-
-  def onEditSurfaceLine(self):
-    self.surfaceFile = self.ui.surfaceLineEdit.text    
-
-
-  def onEditOutputLine(self): # called when either output folder line or output file line is modified
-    self.outputFolder = self.ui.outputLineEdit.text
-    self.outputFile = self.ui.outputLineEdit.text + self.ui.outputFileLineEdit.text
-
-
-  def onRotationSlider(self):
-    self.ui.rotationSpinBox.value = self.ui.rotationSlider.value
-    self.rotation = self.ui.rotationSlider.value
-
-  def onRotationSpinbox(self):
-    self.ui.rotationSlider.value = self.ui.rotationSpinBox.value
-    self.rotation = self.ui.rotationSlider.value
-
-  def onSurfaceModeChanged(self):
-
-    choice = self.ui.surfaceComboBox.currentText
-    if choice == 'Select .vtk file':
-      self.inputChoice = InputChoice.VTK
-      self.ui.surfaceLineEdit.setHidden(False)
-      self.ui.browseSurfaceButton.setHidden(False)
-      self.surfaceFile = self.ui.surfaceLineEdit.text
-    else:
-      self.inputChoice = InputChoice.MRML_NODE
-      self.ui.surfaceLineEdit.setHidden(True)
-      self.ui.browseSurfaceButton.setHidden(True)
-      self.ui.MRMLNodeComboBox.setHidden(False)
-
-  def onNodeChanged(self):
-    self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
-    if self.MRMLNode is not None:
-      print(self.MRMLNode.GetName())
-
-
-  def writeVTKFromNode(self):
-    poly = self.MRMLNode.GetPolyData()    
-    filename = self.outputFile[0:-4]+"_input.vtk"
-    print(filename)
-    polydatawriter = vtk.vtkPolyDataWriter()
-    polydatawriter.SetFileName(filename)
-    polydatawriter.SetInputData(poly)
-    polydatawriter.Write()
-    return filename
-
-  def checkDependencies(self): #TODO: ALSO CHECK FOR CUDA 
-
-    self.ui.dependenciesButton.setEnabled(False)
-    self.ui.applyChangesButton.setEnabled(False)
-    self.ui.installProgressBar.setEnabled(True)
-    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0)
-    self.installLogic.process()
-    self.ui.installProgressBar.setRange(0,0)
-    self.installObserver = self.installLogic.cliNode.AddObserver('ModifiedEvent',self.onInstallationProgress)
-    
-
-  def onInstallationProgress(self,caller,event):
-
-    if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.Completed:
-      if self.installLogic.cliNode.GetStatus() & self.installLogic.cliNode.ErrorsMask:
-        # error
-        errorText = self.installLogic.cliNode.GetErrorText()
-        print("CLI execution failed: \n \n" + errorText)
-
-        msg = qt.QMessageBox()
-        msg.setText(f'There was an error during the installation:\n \n {errorText} ')
-        msg.setWindowTitle("Error")
-        msg.exec_()
-      else:
-        # success
-        print('SUCCESS')
-        print(self.installLogic.cliNode.GetOutputText())
-        self.ui.installSuccessLabel.setHidden(False)
-      self.ui.installProgressBar.setRange(0,100)
-      self.ui.installProgressBar.setEnabled(False)
-      self.ui.dependenciesButton.setEnabled(True)
-      self.ui.applyChangesButton.setEnabled(True)
 
 
 #
@@ -564,105 +646,44 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  def __init__(self, surfaceFile= None,outputFile=None, resolution=None, rotation=None,model=None,predictedId=None):
+  def __init__(self, input_ = None,output=None, resolution=None, rotation=None,model=None,predictedId=None,sepOutputs=None):
     """
     Called when the logic class is instantiated. Can be used for initializing member variables.
     """
     ScriptedLoadableModuleLogic.__init__(self)
-    self.surfaceFile = surfaceFile
-    self.outputFile = outputFile
+    self.input = input_
+    self.output = output
     self.resolution = resolution
     self.rotation = rotation
     self.model = model
     self.predictedId = predictedId
+    self.sepOutputs = sepOutputs
     self.nbOperation = 0
     self.progress = 0
     self.cliNode = None
     self.installCliNode = None
+    """
     print(f"model: {self.model}")
-    print(f'surfaceFile : {self.surfaceFile}')
-    print(f'outptutfile : {self.outputFile}')
+    print(f'input : {self.input}')
+    print(f'outptutfile : {self.output}')
     print(f'resolution : {self.resolution}')
     print(f'rotation : {self.rotation}')
     print(f'predictedId : {self.predictedId}')
+    """
 
 
-  # def setDefaultParameters(self, parameterNode):
-  #   """
-  #   Initialize parameter node with default settings.
-  #   """
 
   def process(self):
-    print('process')
     parameters = {}
-    parameters ["surfaceFile"] = self.surfaceFile
-    parameters ["outputFile"] = self.outputFile
+    parameters ["input"] = self.input
+    parameters ["output"] = self.output
     parameters ["rotation"] = self.rotation
     parameters ['resolution'] = self.resolution
     parameters ['model'] = self.model
     parameters ['predictedId'] = self.predictedId
+    parameters ['sepOutputs'] = self.sepOutputs
     print ('parameters : ', parameters)
-    #parameters ['codePath'] = self.codePath
-
     flybyProcess = slicer.modules.crownsegmentationcli
-
-
     self.cliNode = slicer.cli.run(flybyProcess,None, parameters)    
     return flybyProcess
 
-
-#
-# CrownSegmentationTest
-#
-
-# class CrownSegmentationTest(ScriptedLoadableModuleTest):
-#   """
-#   This is the test case for your scripted module.
-#   Uses ScriptedLoadableModuleTest base class, available at:
-#   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-#   """
-
-#   def setUp(self):
-#     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
-#     """
-#     slicer.mrmlScene.Clear()
-
-#   def runTest(self):
-#     """Run as few or as many tests as needed here.
-#     """
-#     self.setUp()
-#     self.test_CrownSegmentation1()
-
-#   def test_CrownSegmentation1(self):
-#     """ Ideally you should have several levels of tests.  At the lowest level
-#     tests should exercise the functionality of the logic with different inputs
-#     (both valid and invalid).  At higher levels your tests should emulate the
-#     way the user would interact with your code and confirm that it still works
-#     the way you intended.
-#     One of the most important features of the tests is that it should alert other
-#     developers when their changes will have an impact on the behavior of your
-#     module.  For example, if a developer removes a feature that you depend on,
-#     your test should break so they know that the feature is needed.
-#     """
-
-#     self.delayDisplay("Starting the test")
-
-#     # Get/create input data
-
-#     import SampleData
-#     registerSampleData()
-#     inputVolume = SampleData.downloadSample('CrownSegmentation1')
-#     self.delayDisplay('Loaded test data set')
-
-#     inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-#     self.assertEqual(inputScalarRange[0], 0)
-#     self.assertEqual(inputScalarRange[1], 695)
-
-#     outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-#     threshold = 100
-
-#     # Test the module logic
-
-#     # logic = CrownSegmentationLogic()
-
-#     self.delayDisplay('Test passed')

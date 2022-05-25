@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>603</width>
+    <width>649</width>
     <height>908</height>
    </rect>
   </property>
@@ -55,6 +55,11 @@
         <item>
          <property name="text">
           <string>Select .vtk file</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Select folder (containing .vtk files)</string>
          </property>
         </item>
         <item>
@@ -273,6 +278,16 @@
         </property>
        </spacer>
       </item>
+      <item row="10" column="1">
+       <widget class="QLineEdit" name="inputFolderLineEdit"/>
+      </item>
+      <item row="11" column="1">
+       <widget class="QPushButton" name="inputFolderPushButton">
+        <property name="text">
+         <string>Select folder</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -371,6 +386,23 @@
         </property>
        </widget>
       </item>
+      <item row="8" column="1">
+       <widget class="QCheckBox" name="sepOutputsCheckbox">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Create one output for each label&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>Create one output file for each label:</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -405,7 +437,7 @@
        </widget>
       </item>
       <item row="4" column="0">
-       <widget class="QLabel" name="label_7">
+       <widget class="QLabel" name="outputFileLabel">
         <property name="text">
          <string>Output file name: </string>
         </property>
@@ -481,7 +513,7 @@
     </widget>
    </item>
    <item alignment="Qt::AlignHCenter">
-    <widget class="QPushButton" name="openOutButton">
+    <widget class="QPushButton" name="openOutSurfButton">
      <property name="font">
       <font>
        <pointsize>11</pointsize>
@@ -489,6 +521,29 @@
      </property>
      <property name="text">
       <string>Open output surface</string>
+     </property>
+     <property name="checkable">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item alignment="Qt::AlignHCenter">
+    <widget class="QPushButton" name="openOutFolderButton">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+       <weight>50</weight>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Open output folder&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="text">
+      <string>Open output folder</string>
      </property>
      <property name="checkable">
       <bool>false</bool>

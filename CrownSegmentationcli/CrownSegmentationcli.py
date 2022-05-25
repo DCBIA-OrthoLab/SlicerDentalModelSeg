@@ -3,6 +3,7 @@ print("Importing libraries...")
 from slicer.util import pip_install
 import os
 import sys
+import glob
 
 if sys.argv[1] == '-1':
   # Install dependencies
@@ -105,8 +106,13 @@ else:
     device = torch.device("cpu") 
 
 
-def main(surf,out,rot,res,unet_model,scal):
+def main(surf,out,rot,res,unet_model,scal,sepOutputs):
   #if not os.path.isfile(f'{code_path}/process.log'):
+
+  if sepOutputs == 'true':
+    sepOutputs = True
+  else:
+    sepOutputs = False
 
 
   with open(f'{code_path}/process.log','w') as log_f:
@@ -145,7 +151,7 @@ def main(surf,out,rot,res,unet_model,scal):
   ).to(device)
 
   model.load_state_dict(torch.load(unet_model))
-  path = surf
+  
 
   softmax = torch.nn.Softmax(dim=1)
 
@@ -155,86 +161,114 @@ def main(surf,out,rot,res,unet_model,scal):
   ## Camera position
   dist_cam = 1.35
   
-  SURF = utils.ReadSurf(path)
-  surf_unit = utils.GetUnitSurf(SURF)
+
+  path = surf
+  if os.path.isdir(path):
+    l_inputs = glob.glob(f"{path}/*.vtk")
+    if not (os.path.isdir(out)):
+      raise Exception ('The input is a folder, but the output is not.')
+  elif os.path.isfile(path):
+    l_inputs = [path]
+  else:
+    raise Exception ('Incorrect input.')
 
 
-  num_faces = int(SURF.GetPolys().GetData().GetSize()/4)   
- 
-  array_faces = np.zeros((num_classes,num_faces))
-  tensor_faces = torch.zeros(num_classes,num_faces).to(device)
-  model.eval() # Switch to eval mode
-  simple_inferer = SimpleInferer()
+  for index,path in enumerate(l_inputs):
+
+    print(f'\nFile {index+1}/{len(l_inputs)}:')
+
+    SURF = utils.ReadSurf(path)
+    if os.path.isdir(out):
+      output = f'{out}/{os.path.splitext(os.path.basename(path))[0]}_out.vtk'
+    else:
+      output = out
+
+    surf_unit = utils.GetUnitSurf(SURF)
+
+    num_faces = int(SURF.GetPolys().GetData().GetSize()/4)   
+   
+    array_faces = np.zeros((num_classes,num_faces))
+    tensor_faces = torch.zeros(num_classes,num_faces).to(device)
+    model.eval() # Switch to eval mode
+    simple_inferer = SimpleInferer()
 
 
-  (V, F, CN) = GetSurfProp(surf_unit)  # 0.7s to compute : now 0.45s 
-  list_sphere_points = fibonacci_sphere(samples=nb_rotations, dist_cam=dist_cam)
-  list_sphere_points[0] = (0.0001, 1.35, 0.0001) # To avoid "invalid rotation matrix" error
-  list_sphere_points[-1] = (0.0001, -1.35, 0.0001)
+    (V, F, CN) = GetSurfProp(surf_unit)  # 0.7s to compute : now 0.45s 
+    list_sphere_points = fibonacci_sphere(samples=nb_rotations, dist_cam=dist_cam)
+    list_sphere_points[0] = (0.0001, 1.35, 0.0001) # To avoid "invalid rotation matrix" error
+    list_sphere_points[-1] = (0.0001, -1.35, 0.0001)
 
-  ## PREDICTION
-  for coords in tqdm(list_sphere_points, desc = 'Prediction      '):
-    camera_position = ToTensor(dtype=torch.float32, device=device)([list(coords)])
-    R = look_at_rotation(camera_position, device=device)  # (1, 3, 3)
-    T = -torch.bmm(R.transpose(1, 2), camera_position[:,:,None])[:, :, 0]   # (1, 3)
+    ## PREDICTION
+    for coords in tqdm(list_sphere_points, desc = 'Prediction      '):
+      camera_position = ToTensor(dtype=torch.float32, device=device)([list(coords)])
+      R = look_at_rotation(camera_position, device=device)  # (1, 3, 3)
+      T = -torch.bmm(R.transpose(1, 2), camera_position[:,:,None])[:, :, 0]   # (1, 3)
 
-    textures = TexturesVertex(verts_features=CN)
-    meshes = Meshes(verts=V, faces=F, textures=textures)
-    image = phong_renderer(meshes_world=meshes.clone(), R=R, T=T)
-    pix_to_face, zbuf, bary_coords, dists = phong_renderer.rasterizer(meshes.clone())
-    pix_to_face = pix_to_face.squeeze()
-    image = image.permute(0,3,1,2)
-    inputs = image.to(device)
-    outputs = simple_inferer(inputs,model)  
-    outputs_softmax = softmax(outputs).squeeze().detach().cpu().numpy() # t: negligeable  
-      
-    for x in range(image_size):
-        for y in range (image_size): # Browse pixel by pixel
-            array_faces[:,pix_to_face[x,y]] += outputs_softmax[...,x,y]
+      textures = TexturesVertex(verts_features=CN)
+      meshes = Meshes(verts=V, faces=F, textures=textures)
+      image = phong_renderer(meshes_world=meshes.clone(), R=R, T=T)
+      pix_to_face, zbuf, bary_coords, dists = phong_renderer.rasterizer(meshes.clone())
+      pix_to_face = pix_to_face.squeeze()
+      image = image.permute(0,3,1,2)
+      inputs = image.to(device)
+      outputs = simple_inferer(inputs,model)  
+      outputs_softmax = softmax(outputs).squeeze().detach().cpu().numpy() # t: negligeable  
+        
+      for x in range(image_size):
+          for y in range (image_size): # Browse pixel by pixel
+              array_faces[:,pix_to_face[x,y]] += outputs_softmax[...,x,y]
 
-    progress += 1
-    with open(f'{code_path}/process.log','r+') as log_f:
-      log_f.write(str(progress))
-
+      progress += 1
+      with open(f'{code_path}/process.log','r+') as log_f:
+        log_f.write(str(progress))     
     
-  
 
-  array_faces[:,-1][0] = 0 # pixels that are background (id: 0) =-1
-  faces_argmax = np.argmax(array_faces,axis=0)
-  mask = 33 * (faces_argmax == 0) # 0 when face is not assigned to any pixel : we change that to the ID of the gum
-  final_faces_array = faces_argmax + mask
-  unique, counts  = np.unique(final_faces_array, return_counts = True)
+    array_faces[:,-1][0] = 0 # pixels that are background (id: 0) =-1
+    faces_argmax = np.argmax(array_faces,axis=0)
+    mask = 33 * (faces_argmax == 0) # 0 when face is not assigned to any pixel : we change that to the ID of the gum
+    final_faces_array = faces_argmax + mask
+    unique, counts  = np.unique(final_faces_array, return_counts = True)
 
-  surf = SURF
-  nb_points = surf.GetNumberOfPoints()
-  polys = surf.GetPolys()
-  np_connectivity = vtk_to_numpy(polys.GetConnectivityArray())
+    surf = SURF
+    nb_points = surf.GetNumberOfPoints()
+    polys = surf.GetPolys()
+    np_connectivity = vtk_to_numpy(polys.GetConnectivityArray())
 
-  id_points = np.full((nb_points,),33) # fill with ID 33 (gum)
+    id_points = np.full((nb_points,),33) # fill with ID 33 (gum)
 
-  for index,uid in enumerate(final_faces_array.tolist()):
-      id_points[np_connectivity[3*index]] = uid
+    for index,uid in enumerate(final_faces_array.tolist()):
+        id_points[np_connectivity[3*index]] = uid
 
-  vtk_id = numpy_to_vtk(id_points)
-  vtk_id.SetName(scal)
-  surf.GetPointData().AddArray(vtk_id)
+    vtk_id = numpy_to_vtk(id_points)
+    vtk_id.SetName(scal)
+    surf.GetPointData().AddArray(vtk_id)
+
+    ## POST-PROCESS
+
+    # Remove Islands
+    for label in tqdm(range(num_classes),desc = 'Removing islands'):
+      post_process.RemoveIslands(surf, vtk_id, label, 200,ignore_neg1 = True)  
+      progress += 1
+
+    if sepOutputs:
+    # Isolate each label
+      surf_point_data = surf.GetPointData().GetScalars(scal) 
+      labels = np.unique(surf_point_data)
+      out_basename = output[:-4]
+      for label in tqdm(labels, desc = 'Isolating labels'):
+        thresh_label = post_process.Threshold(surf, scal ,label-0.5,label+0.5)
+        if label != 33:
+          utils.Write(thresh_label,f'{out_basename}_id_{label}.vtk',print_out=False) 
+        else:
+          # gum
+          utils.Write(thresh_label,f'{out_basename}_gum.vtk',print_out=False) 
+      # all teeth 
+      no_gum = post_process.Threshold(surf, scal ,33-0.5,33+0.5,invert=True)
+      utils.Write(no_gum,f'{out_basename}_all_teeth.vtk',print_out=False)
 
 
-  # Remove Islands
-  for label in tqdm(range(num_classes),desc = 'Removing islands'):
-    post_process.RemoveIslands(surf, vtk_id, label, 200,ignore_neg1 = True)  # adds -1 labels to isolated points: removed later
-    progress += 1
-  
-  array = surf.GetPointData().GetScalars("PredictedID") 
-
-  unique, counts  = np.unique(array, return_counts = True)
-
-  out_filename = out
-  polydatawriter = vtkPolyDataWriter()
-  polydatawriter.SetFileName(out_filename)
-  polydatawriter.SetInputData(surf)
-  polydatawriter.Write()
-  
+    # Output: all teeth + gum
+    utils.Write(surf,output)
   print("Done.")
 
 
@@ -263,9 +297,9 @@ def GetSurfProp(surf_unit):
 
 
 if __name__ == "__main__":
-  if len (sys.argv) < 7:
-    print("Usage: CrownSegmentationcli <surf> <out> <rot> <res> <model> <scal>")
+  if len (sys.argv) < 8:
+    print("Usage: CrownSegmentationcli <inp> <out> <rot> <res> <model> <scal> <sepOutputs>")
     sys.exit (1)
 
   if sys.argv[1] != '-1':
-    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6])
+    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7])
