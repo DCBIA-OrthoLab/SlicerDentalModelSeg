@@ -1,5 +1,5 @@
 
-﻿# README: Automated jaw segmentation extension
+# README: Automated jaw segmentation extension
 
 This extension aims to provide a GUI for the deep learning method for surface segmentation that we developed. The dental crowns are segmented according to the [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System).
 
