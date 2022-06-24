@@ -70,13 +70,8 @@ else:
   except ImportError:
     pip_install('monai==0.7.0')
 
-  fileDir = os.path.dirname(os.path.abspath(__file__)).split('/')
-  fileDir[-1] = 'seg_code'
-  code_path = '/'.join(fileDir)
-  sys.path.append(code_path)  
-
-  import utils
-  import post_process
+  import _CrownSegmentationcli.utils as utils
+  import _CrownSegmentationcli.post_process as post_process
   import argparse
   import numpy as np
   import math
@@ -106,16 +101,13 @@ else:
     device = torch.device("cpu") 
 
 
-def main(surf,out,rot,res,unet_model,scal,sepOutputs):
-  #if not os.path.isfile(f'{code_path}/process.log'):
-
+def main(surf,out,rot,res,unet_model,scal,sepOutputs,log_path):
   if sepOutputs == 'true':
     sepOutputs = True
   else:
     sepOutputs = False
 
-
-  with open(f'{code_path}/process.log','w') as log_f:
+  with open(log_path,'w') as log_f:
     # clear log file
     log_f.truncate(0)
   progress = 0
@@ -219,7 +211,7 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs):
               array_faces[:,pix_to_face[x,y]] += outputs_softmax[...,x,y]
 
       progress += 1
-      with open(f'{code_path}/process.log','r+') as log_f:
+      with open(log_path,'r+') as log_f:
         log_f.write(str(progress))     
     
 
@@ -298,8 +290,8 @@ def GetSurfProp(surf_unit):
 
 if __name__ == "__main__":
   if len (sys.argv) < 8:
-    print("Usage: CrownSegmentationcli <inp> <out> <rot> <res> <model> <scal> <sepOutputs>")
+    print("Usage: CrownSegmentationcli <inp> <out> <rot> <res> <model> <scal> <sepOutputs> <logPath>")
     sys.exit (1)
 
   if sys.argv[1] != '-1':
-    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7])
+    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7], sys.argv[8])

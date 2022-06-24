@@ -99,10 +99,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.inputChoice = InputChoice.VTK
     self.lNodes = []
     self.MRMLNode = None
-    fileDir = os.path.dirname(os.path.abspath(__file__)).split('/')
-    fileDir[-1] = 'seg_code'
-    code_path = '/'.join(fileDir)
-    self.log_path = f'{code_path}/process.log' 
+    self.log_path = os.path.join(slicer.util.tempDirectory(), 'process.log')
     self.time_log = 0 # for progress bar
     self.progress = 0
 
@@ -412,7 +409,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.dependenciesButton.setEnabled(False)
     self.ui.applyChangesButton.setEnabled(False)
     self.ui.installProgressBar.setEnabled(True)
-    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0) # -1: flag so that CLI module knows it's only to install dependencies
+    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0,0,0) # -1: flag so that CLI module knows it's only to install dependencies
     self.installLogic.process()
     self.ui.installProgressBar.setRange(0,0)
     self.installObserver = self.installLogic.cliNode.AddObserver('ModifiedEvent',self.onInstallationProgress)
@@ -530,7 +527,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                                             self.ui.rotationSpinBox.value,
                                             self.model, 
                                             self.predictedId,
-                                            self.ui.sepOutputsCheckbox.isChecked())
+                                            self.ui.sepOutputsCheckbox.isChecked(),
+                                            self.log_path)
 
       else: # input folder/file
         self.logic = CrownSegmentationLogic(self.input,
@@ -539,7 +537,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                                             self.ui.rotationSpinBox.value,
                                             self.model, 
                                             self.predictedId, 
-                                            self.ui.sepOutputsCheckbox.isChecked())
+                                            self.ui.sepOutputsCheckbox.isChecked(),
+                                            self.log_path)
 
       
       self.logic.process()
@@ -646,7 +645,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  def __init__(self, input_ = None,output=None, resolution=None, rotation=None,model=None,predictedId=None,sepOutputs=None):
+  def __init__(self, input_ = None,output=None, resolution=None, rotation=None,model=None,predictedId=None,sepOutputs=None,logPath=None):
     """
     Called when the logic class is instantiated. Can be used for initializing member variables.
     """
@@ -658,6 +657,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     self.model = model
     self.predictedId = predictedId
     self.sepOutputs = sepOutputs
+    self.logPath = logPath
     self.nbOperation = 0
     self.progress = 0
     self.cliNode = None
@@ -682,6 +682,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     parameters ['model'] = self.model
     parameters ['predictedId'] = self.predictedId
     parameters ['sepOutputs'] = self.sepOutputs
+    parameters ['logPath'] = self.logPath
     print ('parameters : ', parameters)
     flybyProcess = slicer.modules.crownsegmentationcli
     self.cliNode = slicer.cli.run(flybyProcess,None, parameters)    

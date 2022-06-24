@@ -4,7 +4,7 @@ import argparse
 import sys
 import os
 from collections import namedtuple
-from utils import * 
+from _CrownSegmentationcli.utils import * 
 
 # parser = argparse.ArgumentParser()
 # parser.add_argument('--mesh', help='Insert mesh path')
