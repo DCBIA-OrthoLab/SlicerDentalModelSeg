@@ -66,5 +66,12 @@
       <description>Multiple output files.</description>
     </boolean>
 
+    <string>
+      <name>logPath</name>
+      <label>logPath</label>
+      <index>7</index>
+      <description>Path to write log to</description>
+    </string>
+
   </parameters>
 </executable>
