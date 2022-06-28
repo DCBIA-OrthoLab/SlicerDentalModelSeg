@@ -447,7 +447,6 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     jaw_model = slicer.util.loadModel(self.output)
 
   def onOpenOutFolderButton(self):
-    print(self.output)
     webbrowser.open(self.output)
 
   def onBrowseOutputButton(self):
