@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <executable>
-  <category>Examples</category>
+  <category>Segmentation.Advanced</category>
   <index>0</index>
   <title>CrownSegmentationcli</title>
   <description><![CDATA[CLI module that can be built into an extension]]></description>
