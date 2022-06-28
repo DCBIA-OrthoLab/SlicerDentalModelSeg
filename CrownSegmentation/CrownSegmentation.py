@@ -39,19 +39,34 @@ class CrownSegmentation(ScriptedLoadableModule):
     # TODO: update with short description of the module and a link to online module documentation
     self.parent.helpText = """
 This extension provides a GUI for the deep learning method for jaw segmentation that we developed. 
-The dental crowns are segmented according to the <a href="https://en.wikipedia.org/wiki/Universal_Numbering_System">Universal Number System</a>. <br> <br>
+The dental crowns are segmented according to the <a href="https://en.wikipedia.org/wiki/Universal_Numbering_System">Universal Number System</a>. <br>
 
+<h2 style="color: #2e6c80;">Running the module :</h2>
+ <br> <br>
+- The input file must be a .vtk file or a MRMLModelNode of a IOS scan for a lower or upper jaw. The model works better with models of jaws with no wisdom teeth. 
+You can find examples in the "Examples" folder. <br> <br> 
 
-Running the module : <br> 
-- The input file must be a .vtk file of a lower or upper jaw. The model works better with models of jaws with no wisdom teeth. You can find examples in the "Examples" folder.
-Number of views: this sets the number of 2D views used for one prediction. A low number takes less time to compute, but results can be inaccurate.<br> <br>
+- Number of views: this sets the number of 2D views used for one prediction. A low number takes less time to compute, but results can be inaccurate.<br> <br>
 
 - Model for segmentation: this is the path for the neural network model. Resolution: This sets the resolution of the 2D views. 320 px is recommended. 
-Name of predicted labels: this is the name the array with the predicted labels on the output vtk file.   <br> <br> 
+Name of predicted labels: this is the name the array with the predicted labels on the output vtk file.   <br><br> 
 
-- To visualize the results, open the output file and set scalars to "visible" and select the correct scalar in Slicer's "Models" module. <br><br>
 
-When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".<br> <br> 
+
+<span style="color: ##2e6c80;"><strong>More options can be found in the "Advanced" section:</strong></span> <br><br> 
+
+
+- Resolution: this sets the resolution of the 2D views used for the prediction. This should usually be set to 320px. <br><br>
+
+- Name of predicted labels: The name of the VTK array that stores the labels for each vertex in the output surface file. <br><br>
+
+- "Install/Check dependencies" button: This forces the installation of all dependencies. If you don't use this button the first time you run a prediction, it will 
+automatically install all dependencies before starting the prediction.
+
+- "Create one output file for each label": Check this box if you want one separate output file for each tooth. <br><br>
+
+When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".
+To visualize the results, set scalars to "visible" and select the correct scalar in Slicer's "Models" module. <br><br>
 
 More help can be found on the <a href="https://github.com/MathieuLeclercq/SlicerJawSegmentation">Github repository</a> for the extension.
 """
@@ -102,6 +117,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.log_path = os.path.join(slicer.util.tempDirectory(), 'process.log')
     self.time_log = 0 # for progress bar
     self.progress = 0
+    self.currentPredDict = {}
 
 
   def setup(self):
@@ -440,8 +456,11 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
   ###
 
   def onOpenOutSurfButton(self):
-    print(self.output)
-    jaw_model = slicer.util.loadModel(self.output)
+    print(self.currentPredDict["output"])
+    jaw_model = slicer.util.loadModel(self.currentPredDict["output"])
+    jaw_model.GetDisplayNode().SetActiveScalar(self.currentPredDict["PredictedID"], vtk.vtkAssignAttribute.POINT_DATA)
+    #jaw_model.GetDisplayNode().SetAndObserveColorNodeID("vtkMRMLColorTableNodeViridis")
+    jaw_model.GetDisplayNode().SetScalarVisibility(True)
 
   def onOpenOutFolderButton(self):
     webbrowser.open(self.output)
@@ -523,7 +542,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.logic = CrownSegmentationLogic(filename,
                                             self.output,
                                             self.resolution, 
-                                            self.ui.rotationSpinBox.value,
+                                            self.rotation,
                                             self.model, 
                                             self.predictedId,
                                             self.ui.sepOutputsCheckbox.isChecked(),
@@ -533,7 +552,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.logic = CrownSegmentationLogic(self.input,
                                             self.output,
                                             self.resolution, 
-                                            self.ui.rotationSpinBox.value,
+                                            self.rotation,
                                             self.model, 
                                             self.predictedId, 
                                             self.ui.sepOutputsCheckbox.isChecked(),
@@ -547,7 +566,10 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
 
 
-  def onProcessStarted(self):
+  def onProcessStarted(self):    
+    self.currentPredDict["rotation"] = self.rotation
+    self.currentPredDict["PredictedID"] = self.predictedId
+    self.currentPredDict["output"] = self.output
     self.ui.doneLabel.setHidden(True)
     self.ui.openOutSurfButton.setHidden(True)
     self.ui.cancelButton.setHidden(False)
@@ -564,6 +586,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.progressBar.setTextVisible(True)
     self.ui.progressLabel.setHidden(False)
 
+
+
   def onProcessUpdate(self,caller,event):
     # check log file
     if os.path.isfile(self.log_path):
@@ -572,7 +596,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         # if progress was made
         self.time_log = time
         self.progress += 1
-        progressbar_value = self.progress/((self.rotation+2) * self.nbFiles) * 100
+        progressbar_value = self.progress /((self.currentPredDict['rotation']+2) * self.nbFiles) * 100
         #print(f'progressbar value {progressbar_value}')
         if progressbar_value < 100 :
           self.ui.progressBar.setValue(progressbar_value)
@@ -611,7 +635,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
   def onReset(self):
     self.ui.outputLineEdit.setText("")
     self.ui.surfaceLineEdit.setText("")
-    self.ui.rotationSpinBox.value = 50
+    self.ui.rotationSpinBox.value = 45
     self.ui.applyChangesButton.setEnabled(True)
     self.ui.progressLabel.setHidden(True)
     self.ui.openOutSurfButton.setHidden(True)
