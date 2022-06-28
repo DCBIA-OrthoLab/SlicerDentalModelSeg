@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>649</width>
-    <height>908</height>
+    <height>1043</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -205,7 +205,7 @@
          </font>
         </property>
         <property name="text">
-         <string>/NIRAL/work/leclercq/source/flybyCNN/fly-by-cnn/src/py/FiboSeg/best_metric_model_segmentation2d_array_v2_5.pth</string>
+         <string/>
         </property>
        </widget>
       </item>
