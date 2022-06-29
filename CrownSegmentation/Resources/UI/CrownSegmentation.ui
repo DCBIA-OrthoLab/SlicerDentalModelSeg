@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>649</width>
-    <height>1043</height>
+    <height>1001</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -40,17 +40,14 @@
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
-      <item row="4" column="0" colspan="2">
-       <layout class="QHBoxLayout" name="horizontalLayout"/>
-      </item>
-      <item row="5" column="0">
+      <item row="4" column="0">
        <widget class="QLabel" name="label_5">
         <property name="text">
          <string>Chose input type: </string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="4" column="1">
        <widget class="QComboBox" name="surfaceComboBox">
         <item>
          <property name="text">
@@ -69,7 +66,7 @@
         </item>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="5" column="1">
        <spacer name="verticalSpacer_6">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -82,7 +79,7 @@
         </property>
        </spacer>
       </item>
-      <item row="7" column="1">
+      <item row="6" column="1">
        <widget class="QLineEdit" name="surfaceLineEdit">
         <property name="font">
          <font>
@@ -95,14 +92,42 @@
         </property>
        </widget>
       </item>
-      <item row="8" column="1">
+      <item row="7" column="1">
        <widget class="QPushButton" name="browseSurfaceButton">
         <property name="text">
          <string>Select surface</string>
         </property>
        </widget>
       </item>
-      <item row="11" column="0">
+      <item row="8" column="1">
+       <widget class="qMRMLNodeComboBox" name="MRMLNodeComboBox">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="nodeTypes">
+         <stringlist>
+          <string>vtkMRMLModelNode</string>
+         </stringlist>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0">
+       <spacer name="verticalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>10</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="9" column="1">
+       <widget class="QLineEdit" name="inputFolderLineEdit"/>
+      </item>
+      <item row="10" column="0">
        <spacer name="verticalSpacer_2">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -115,14 +140,21 @@
         </property>
        </spacer>
       </item>
-      <item row="14" column="0">
+      <item row="10" column="1">
+       <widget class="QPushButton" name="inputFolderPushButton">
+        <property name="text">
+         <string>Select folder</string>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="0">
        <widget class="QLabel" name="label_3">
         <property name="text">
          <string>Number of views: </string>
         </property>
        </widget>
       </item>
-      <item row="14" column="1">
+      <item row="13" column="1">
        <widget class="QSpinBox" name="rotationSpinBox">
         <property name="minimum">
          <number>15</number>
@@ -138,7 +170,7 @@
         </property>
        </widget>
       </item>
-      <item row="15" column="1">
+      <item row="14" column="1">
        <widget class="QSlider" name="rotationSlider">
         <property name="minimum">
          <number>15</number>
@@ -147,7 +179,7 @@
          <number>120</number>
         </property>
         <property name="value">
-         <number>40</number>
+         <number>45</number>
         </property>
         <property name="tracking">
          <bool>true</bool>
@@ -163,7 +195,7 @@
         </property>
        </widget>
       </item>
-      <item row="17" column="1">
+      <item row="16" column="1">
        <spacer name="verticalSpacer_3">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -176,7 +208,7 @@
         </property>
        </spacer>
       </item>
-      <item row="19" column="1">
+      <item row="18" column="1">
        <spacer name="verticalSpacer_5">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -189,14 +221,14 @@
         </property>
        </spacer>
       </item>
-      <item row="21" column="0">
+      <item row="20" column="0">
        <widget class="QLabel" name="label_4">
         <property name="text">
          <string>Model for segmentation:</string>
         </property>
        </widget>
       </item>
-      <item row="21" column="1">
+      <item row="20" column="1">
        <widget class="QLineEdit" name="modelLineEdit">
         <property name="font">
          <font>
@@ -209,28 +241,28 @@
         </property>
        </widget>
       </item>
-      <item row="23" column="1">
+      <item row="22" column="1">
        <widget class="QPushButton" name="browseModelButton">
         <property name="text">
          <string>Select model</string>
         </property>
        </widget>
       </item>
-      <item row="24" column="1">
+      <item row="23" column="1">
        <widget class="QLabel" name="label_8">
         <property name="text">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;or&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
        </widget>
       </item>
-      <item row="25" column="1">
+      <item row="24" column="1">
        <widget class="QPushButton" name="githubButton">
         <property name="text">
          <string>Look for latest version on Github</string>
         </property>
        </widget>
       </item>
-      <item row="26" column="1">
+      <item row="25" column="1">
        <spacer name="verticalSpacer_7">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -243,48 +275,13 @@
         </property>
        </spacer>
       </item>
-      <item row="27" column="0" colspan="2">
+      <item row="26" column="0" colspan="2">
        <widget class="QPushButton" name="resetButton">
         <property name="enabled">
          <bool>true</bool>
         </property>
         <property name="text">
          <string>Reset</string>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="1">
-       <widget class="qMRMLNodeComboBox" name="MRMLNodeComboBox">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="nodeTypes">
-         <stringlist>
-          <string>vtkMRMLModelNode</string>
-         </stringlist>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="0">
-       <spacer name="verticalSpacer_4">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>10</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="10" column="1">
-       <widget class="QLineEdit" name="inputFolderLineEdit"/>
-      </item>
-      <item row="11" column="1">
-       <widget class="QPushButton" name="inputFolderPushButton">
-        <property name="text">
-         <string>Select folder</string>
         </property>
        </widget>
       </item>

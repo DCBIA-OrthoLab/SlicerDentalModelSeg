@@ -194,6 +194,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     
 
     #initialize variables
+    if qt.QSettings().value('JawSeg_ModelPath') != None:
+      self.ui.modelLineEdit.setText(qt.QSettings().value('JawSeg_ModelPath'))
     self.model = self.ui.modelLineEdit.text
     self.input = self.ui.surfaceLineEdit.text
     self.outputFolder = self.ui.outputLineEdit.text
@@ -203,6 +205,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.rotation = self.ui.rotationSlider.value
     self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
     #print(self.MRMLNode.GetName())
+
 
     # Make sure parameter node is initialized (needed for module reload)
     self.initializeParameterNode()
@@ -459,7 +462,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     print(self.currentPredDict["output"])
     jaw_model = slicer.util.loadModel(self.currentPredDict["output"])
     jaw_model.GetDisplayNode().SetActiveScalar(self.currentPredDict["PredictedID"], vtk.vtkAssignAttribute.POINT_DATA)
-    #jaw_model.GetDisplayNode().SetAndObserveColorNodeID("vtkMRMLColorTableNodeViridis")
+    jaw_model.GetDisplayNode().SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileViridis.txt")
     jaw_model.GetDisplayNode().SetScalarVisibility(True)
 
   def onOpenOutFolderButton(self):
@@ -585,6 +588,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.progressBar.setHidden(False)
     self.ui.progressBar.setTextVisible(True)
     self.ui.progressLabel.setHidden(False)
+
+    qt.QSettings().setValue("JawSeg_ModelPath",self.model)
 
 
 
