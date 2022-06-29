@@ -61,12 +61,12 @@ Name of predicted labels: this is the name the array with the predicted labels o
 - Name of predicted labels: The name of the VTK array that stores the labels for each vertex in the output surface file. <br><br>
 
 - "Install/Check dependencies" button: This forces the installation of all dependencies. If you don't use this button the first time you run a prediction, it will 
-automatically install all dependencies before starting the prediction.
+automatically install all dependencies before starting the prediction. <br><br>
 
 - "Create one output file for each label": Check this box if you want one separate output file for each tooth. <br><br>
 
 When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".
-To visualize the results, set scalars to "visible" and select the correct scalar in Slicer's "Models" module. <br><br>
+You can change the color table in Slicer's "Models" module. <br><br>
 
 More help can be found on the <a href="https://github.com/MathieuLeclercq/SlicerJawSegmentation">Github repository</a> for the extension.
 """
