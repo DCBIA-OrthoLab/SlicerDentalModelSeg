@@ -1,9 +1,8 @@
 
-# README: Automated jaw segmentation extension
+# Automated 3D Jaw scan Segmentation and Labeling
 
-This extension aims to provide a GUI for the deep learning method for surface segmentation that we developed. The dental crowns are segmented according to the [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System).
-
-
+JawSegmentation is an extension for 3D Slicer, an free, open-source software for medical, biomedical and related imaging research.
+This extension aims to provide a Graphical User Interface for a deep learning teeth segmentation tool that we developed at the University of North Carolina in Chapel Hill. This tool takes 3D IOS scans of jaws and automatically labels the teeth. The dental crowns are labeled according to the [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System).
 
 
 # How to run the extension
@@ -18,9 +17,7 @@ This extension aims to provide a GUI for the deep learning method for surface se
    prediction. A low number takes less time to compute, but results can
    be inaccurate.
  - Model for segmentation: this is the path for the neural network
-   model. Resolution: This sets the resolution of the 2D views. 320 px
-   is recommended. Name of predicted labels: this is the name the array
-   with the predicted labels on  the output vtk file.
+   model. 
  - Resolution: this sets the resolution of the 2D views used for the prediction.
    This should usually be set to 320px.
  - Name of predicted labels: The name of the VTK array that stores the labels for each vertex in the output surface file.
