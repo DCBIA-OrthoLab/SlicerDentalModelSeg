@@ -42,6 +42,6 @@ foreach(FILE ${HELPER_FILES})
     )
 
   install(FILES ${FILE}
-    DESTINATION "${Slicer_INSTALL_CLIMODULES_BIN_DIR}"
+    DESTINATION "${Slicer_INSTALL_CLIMODULES_BIN_DIR}/${FILE_RELATIVE_PATH}"
     )
 endforeach()
