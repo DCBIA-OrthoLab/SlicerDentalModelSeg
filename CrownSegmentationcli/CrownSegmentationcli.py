@@ -23,7 +23,7 @@ if sys.argv[1] == '-1':
     pip_install('itk==5.2.1.post1') # itk
     pip_install('monai==0.7.0') # monai
   else: 
-    Raise Exception('Module does not work in Windows yet.')
+    raise Exception('Module does not work in Windows yet.')
 
 
 else:
