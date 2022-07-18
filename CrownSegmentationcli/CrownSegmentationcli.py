@@ -7,18 +7,23 @@ import glob
 
 if sys.argv[1] == '-1':
   # Install dependencies
-  print('Installing dependencies...')
-  pip_install('--upgrade pip')
-  pip_install('tqdm==4.64.0') # tqdm
-  pip_install('pandas==1.4.2') # pandas
-  #pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
-  pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
-  pip_install('fvcore==0.1.5.post20220504')
-  pip_install('iopath==0.1.9')
-  #pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu111_pyt1101/download.html') # pytorch3d
-  pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html') # pytorch3d
-  pip_install('itk==5.2.1.post1') # itk
-  pip_install('monai==0.7.0') # monai
+  import platform 
+  system = platform.system()
+  if system != "Windows":
+
+    print('Installing dependencies...')
+    pip_install('--upgrade pip')
+    pip_install('tqdm==4.64.0') # tqdm
+    pip_install('pandas==1.4.2') # pandas
+    #pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
+    pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+    pip_install('fvcore==0.1.5.post20220504')
+    pip_install('iopath==0.1.9')
+    pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html') # pytorch3d
+    pip_install('itk==5.2.1.post1') # itk
+    pip_install('monai==0.7.0') # monai
+  else: 
+    Raise Exception('Module does not work in Windows yet.')
 
 
 else:
