@@ -5,25 +5,29 @@ import os
 import sys
 import glob
 
-if sys.argv[1] == '-1':
+
+def InstallDependencies():
   # Install dependencies
   import platform 
   system = platform.system()
-  if system != "Windows":
-
-    print('Installing dependencies...')
-    pip_install('--upgrade pip')
-    pip_install('tqdm==4.64.0') # tqdm
-    pip_install('pandas==1.4.2') # pandas
-    #pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
-    pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
-    pip_install('fvcore==0.1.5.post20220504')
-    pip_install('iopath==0.1.9')
+  print('Installing dependencies...')
+  pip_install('--upgrade pip')
+  pip_install('tqdm==4.64.0') # tqdm
+  pip_install('pandas==1.4.2') # pandas
+  #pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
+  pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+  pip_install('itk==5.2.1.post1') # itk
+  pip_install('monai==0.7.0') # monai
+  pip_install('fvcore==0.1.5.post20220504')
+  pip_install('iopath==0.1.9')
+  if system == "Linux":
     pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html') # pytorch3d
-    pip_install('itk==5.2.1.post1') # itk
-    pip_install('monai==0.7.0') # monai
-  else: 
-    raise Exception('Module does not work in Windows yet.')
+  else:
+    pip_install("git+https://github.com/facebookresearch/pytorch3d.git")
+
+if sys.argv[1] == '-1':
+  InstallDependencies()
+    
 
 
 else:
@@ -52,17 +56,8 @@ else:
     if pytorch3d.__version__ != '0.6.2':
       raise ImportError
   except ImportError:
-    try:
-      import torch
-      pyt_version_str=torch.__version__.split("+")[0].replace(".", "")
-      version_str="".join([f"py3{sys.version_info.minor}_cu",torch.version.cuda.replace(".",""),f"_pyt{pyt_version_str}"])
-      pip_install('--upgrade pip')
-      pip_install('fvcore==0.1.5.post20220305')
-      pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/{version_str}/download.html')
-    except: # install correct torch version
-      pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113') 
-      pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html')
-
+    InstallDependencies()
+    
   try:
     import itk
   except ImportError:
@@ -185,7 +180,6 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,log_path):
     num_faces = int(SURF.GetPolys().GetData().GetSize()/4)   
    
     array_faces = np.zeros((num_classes,num_faces))
-    tensor_faces = torch.zeros(num_classes,num_faces).to(device)
     model.eval() # Switch to eval mode
     simple_inferer = SimpleInferer()
 
