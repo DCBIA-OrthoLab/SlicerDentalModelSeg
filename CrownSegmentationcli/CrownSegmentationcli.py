@@ -199,6 +199,8 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,log_path):
       meshes = Meshes(verts=V, faces=F, textures=textures)
       image = phong_renderer(meshes_world=meshes.clone(), R=R, T=T)
       pix_to_face, zbuf, bary_coords, dists = phong_renderer.rasterizer(meshes.clone())
+      depth_map = zbuf
+      image = torch.cat([image[:,:,:,0:3], depth_map], dim=-1)
       pix_to_face = pix_to_face.squeeze()
       image = image.permute(0,3,1,2)
       inputs = image.to(device)
@@ -237,6 +239,9 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,log_path):
     ## POST-PROCESS
 
     # Remove Islands
+    # start with gum
+    post_process.RemoveIslands(surf, vtk_id, 33, 500,ignore_neg1 = True) 
+
     for label in tqdm(range(num_classes),desc = 'Removing islands'):
       post_process.RemoveIslands(surf, vtk_id, label, 200,ignore_neg1 = True)  
       progress += 1
