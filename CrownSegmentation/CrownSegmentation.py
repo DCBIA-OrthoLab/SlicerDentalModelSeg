@@ -38,7 +38,7 @@ class CrownSegmentation(ScriptedLoadableModule):
     "Jonas Bianchi (University of Michigan)"]  # TODO: replace with "Firstname Lastname (Organization)"
     # TODO: update with short description of the module and a link to online module documentation
     self.parent.helpText = """
-This extension provides a GUI for the deep learning method for jaw segmentation that we developed. 
+This extension provides a GUI for the deep learning method for automated teeth segmentation on 3D IOS scans. 
 The dental crowns are segmented according to the <a href="https://en.wikipedia.org/wiki/Universal_Numbering_System">Universal Number System</a>. <br>
 
 <h2 style="color: #2e6c80;">Running the module :</h2>
