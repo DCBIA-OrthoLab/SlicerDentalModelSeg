@@ -256,6 +256,7 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,chooseFDI,log_path):
 
 
     if chooseFDI:
+      print(f'chooseFDI: {chooseFDI}')
       surf = ConvertFDI(surf,scal)
     
     if sepOutputs:
@@ -324,8 +325,8 @@ def GetSurfProp(surf_unit):
 
 if __name__ == "__main__":
   if len (sys.argv) < 10:
-    print("Usage: CrownSegmentationcli <inp> <out> <rot> <res> <model> <scal> <sepOutputs> <logPath>")
+    print("Usage: CrownSegmentationcli <inp> <out> <rot> <res> <model> <scal> <sepOutputs> <chooseFDI> <logPath>")
     sys.exit (1)
 
   if sys.argv[1] != '-1':
-    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7], sys.argv[8], sys.argv[9])
+    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7], int(sys.argv[8]), sys.argv[9])

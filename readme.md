@@ -24,7 +24,7 @@ This extension aims to provide a Graphical User Interface for a deep-learning te
  - "Install/Check dependencies" button: This forces the installation of all dependencies.
    If you don't use this button the first time you run a prediction, it will automatically install all dependencies before starting the prediction.
  - "Create one output file for each label": Check this box if you want one separate output file for each tooth. 
- - "Numbering system": lets you choose between [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System) and [FDI notation](https://en.wikipedia.org/wiki/FDI_World_Dental_Federation_notation)
+ - "Numbering system": lets you choose between [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System) and [FDI notation](https://en.wikipedia.org/wiki/FDI_World_Dental_Federation_notation).
 
 When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface" button. To visualize the results, open the output file and set scalars to "visible" and select the correct scalar in Slicer's "Models" module.
 
