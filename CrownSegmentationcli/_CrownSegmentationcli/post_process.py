@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import sys
 import os
+import math
 from collections import namedtuple
 from _CrownSegmentationcli.utils import * 
 
@@ -300,14 +301,14 @@ def ConnectivityLabeling(vtkdata, labels, label, start_label):
 				labels.SetTuple(int(cpid), (start_label,))
 			start_label += 1
 
-def ErodeLabel(vtkdata, labels, label, ignore_label=None):
+def ErodeLabel(vtkdata, labels, label, ignore_label=None,iterations=math.inf, target=None ):
 	
 	pid_labels = []
 	for pid in range(labels.GetNumberOfTuples()):
 		if labels.GetTuple(pid)[0] == label:
 			pid_labels.append(pid)
 
-	while pid_labels:
+	while pid_labels and iterations !=0:
 		pid_labels_remain = pid_labels
 		pid_labels = []
 
@@ -323,7 +324,8 @@ def ErodeLabel(vtkdata, labels, label, ignore_label=None):
 
 			for npid in neighbor_pids:
 				neighbor_label = labels.GetTuple(npid)[0]
-				if neighbor_label != label and (ignore_label == None or neighbor_label != ignore_label):
+				if neighbor_label != label and (ignore_label == None or neighbor_label != ignore_label) and (target == None or neighbor_label == target):
+
 					all_neighbor_pids.append(pid)
 					all_neighbor_labels.append(neighbor_label)
 					is_neighbor = True
@@ -337,8 +339,9 @@ def ErodeLabel(vtkdata, labels, label, ignore_label=None):
 				labels.SetTuple(int(npid), (nlabel,))
 		else:
 			break
+		iterations -= 1
 
-def DilateLabel(vtkdata, labels, label, iterations=2):
+def DilateLabel(vtkdata, labels, label, iterations=2, dilateOverTarget=False, target=None):
 	
 	pid_labels = []
 
@@ -352,8 +355,13 @@ def DilateLabel(vtkdata, labels, label, iterations=2):
 
 				for npid in neighbor_pids:
 					neighbor_label = labels.GetTuple(npid)[0]
-					if neighbor_label != label:
-						all_neighbor_labels.append(npid)
+
+					if dilateOverTarget:
+						if neighbor_label == target:
+							all_neighbor_labels.append(npid)
+					else:
+						if neighbor_label != label:
+							all_neighbor_labels.append(npid)
 
 		#Dilate them, i.e., change the value to label
 		for npid in all_neighbor_labels:
@@ -432,7 +440,6 @@ if __name__ == '__main__':
 		surf = Threshold(surf, labels, args.threshold_min, args.threshold_max)
 
 	Write(surf, args.out)
-
 
 
 

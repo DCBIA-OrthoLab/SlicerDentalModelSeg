@@ -65,6 +65,9 @@ automatically install all dependencies before starting the prediction. <br><br>
 
 - "Create one output file for each label": Check this box if you want one separate output file for each tooth. <br><br>
 
+- "Numbering system": lets you choose between <a href="https://en.wikipedia.org/wiki/Universal_Numbering_System">Universal Number System</a> and <a href="https://en.wikipedia.org/wiki/FDI_World_Dental_Federation_notation">FDI notation</a>.
+<br><br>
+
 When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".
 You can change the color table in Slicer's "Models" module. <br><br>
 
@@ -177,6 +180,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.resolutionComboBox.currentTextChanged.connect(self.onResolutionChanged)
     self.ui.installProgressBar.setEnabled(False)
     self.ui.installSuccessLabel.setHidden(True)
+    self.ui.labelComboBox.currentTextChanged.connect(self.onFDI)
 
     # Outputs 
     self.ui.browseOutputButton.connect('clicked(bool)',self.onBrowseOutputButton)
@@ -204,6 +208,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.resolution = int(self.ui.resolutionComboBox.currentText)
     self.rotation = self.ui.rotationSlider.value
     self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
+    self.chooseFDI = self.ui.labelComboBox.currentIndex
     #print(self.MRMLNode.GetName())
 
 
@@ -455,6 +460,13 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       self.ui.dependenciesButton.setEnabled(True)
       self.ui.applyChangesButton.setEnabled(True)
 
+
+  def onFDI(self):
+    self.chooseFDI = self.ui.labelComboBox.currentIndex
+    print(f'chooseFDI: {self.chooseFDI}')
+
+
+
   ###
   ### OUTPUTS
   ###
@@ -550,6 +562,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                                             self.model, 
                                             self.predictedId,
                                             self.ui.sepOutputsCheckbox.isChecked(),
+                                            self.chooseFDI,
                                             self.log_path)
 
       else: # input folder/file
@@ -560,6 +573,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                                             self.model, 
                                             self.predictedId, 
                                             self.ui.sepOutputsCheckbox.isChecked(),
+                                            self.chooseFDI,
                                             self.log_path)
 
       
@@ -649,6 +663,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.progressBar.setValue(0)
     self.ui.doneLabel.setHidden(True)
     self.ui.surfaceComboBox.setCurrentIndex(0)
+    self.ui.labelComboBox.setCurrentIndex(0)
     self.ui.sepOutputsCheckbox.setChecked(False)
     self.removeObservers()    
 
@@ -674,7 +689,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  def __init__(self, input_ = None,output=None, resolution=None, rotation=None,model=None,predictedId=None,sepOutputs=None,logPath=None):
+  def __init__(self, input_ = None,output=None, resolution=None, rotation=None,model=None,predictedId=None,sepOutputs=None,chooseFDI=None,logPath=None):
     """
     Called when the logic class is instantiated. Can be used for initializing member variables.
     """
@@ -686,6 +701,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     self.model = model
     self.predictedId = predictedId
     self.sepOutputs = sepOutputs
+    self.chooseFDI = chooseFDI
     self.logPath = logPath
     self.nbOperation = 0
     self.progress = 0
@@ -711,6 +727,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     parameters ['model'] = self.model
     parameters ['predictedId'] = self.predictedId
     parameters ['sepOutputs'] = self.sepOutputs
+    parameters ['chooseFDI'] = self.chooseFDI
     parameters ['logPath'] = self.logPath
     print ('parameters : ', parameters)
     flybyProcess = slicer.modules.crownsegmentationcli

@@ -400,6 +400,27 @@
         </property>
        </widget>
       </item>
+      <item row="9" column="1">
+       <widget class="QComboBox" name="labelComboBox">
+        <item>
+         <property name="text">
+          <string>Universal Numbering System</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>FDI notation</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="9" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Numbering system:</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

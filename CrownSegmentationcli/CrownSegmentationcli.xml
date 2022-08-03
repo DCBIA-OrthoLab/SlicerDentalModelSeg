@@ -66,10 +66,18 @@
       <description>Multiple output files.</description>
     </boolean>
 
+    <integer>
+      <name>chooseFDI</name>
+      <label>chooseFDI</label>
+      <index>7</index>
+      <description>Numbering system</description>
+    </integer>
+
+
     <string>
       <name>logPath</name>
       <label>logPath</label>
-      <index>7</index>
+      <index>8</index>
       <description>Path to write log to</description>
     </string>
 

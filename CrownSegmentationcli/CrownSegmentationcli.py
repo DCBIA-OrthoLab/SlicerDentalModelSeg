@@ -101,7 +101,7 @@ else:
     device = torch.device("cpu") 
 
 
-def main(surf,out,rot,res,unet_model,scal,sepOutputs,log_path):
+def main(surf,out,rot,res,unet_model,scal,sepOutputs,chooseFDI,log_path):
   if sepOutputs == 'true':
     sepOutputs = True
   else:
@@ -246,6 +246,18 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,log_path):
       post_process.RemoveIslands(surf, vtk_id, label, 200,ignore_neg1 = True)  
       progress += 1
 
+
+    # CLOSING OPERATION
+    #one tooth at a time
+    for label in tqdm(range(num_classes),desc = 'Closing operation'):
+        post_process.DilateLabel(surf, vtk_id, label, iterations=2, dilateOverTarget=False, target=None) 
+        post_process.ErodeLabel(surf, vtk_id, label, iterations=2, target=None) 
+
+
+
+    if chooseFDI:
+      surf = ConvertFDI(surf,scal)
+    
     if sepOutputs:
     # Isolate each label
       surf_point_data = surf.GetPointData().GetScalars(scal) 
@@ -281,6 +293,24 @@ def fibonacci_sphere(samples, dist_cam):
         points.append((x*dist_cam, y*dist_cam, z*dist_cam))
     return points
 
+def ConvertFDI(surf, scal):
+  print('Converting to FDI...')
+
+  LUT = np.array([0,18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28,
+                  38,37,36,35,34,33,32,31,41,42,43,44,45,46,47,48,0])
+  # extract UniversalID array
+  labels = vtk_to_numpy(surf.GetPointData().GetScalars(scal))
+  
+  # convert to their numbering system
+  labels = LUT[labels]
+  vtk_id = numpy_to_vtk(labels)
+  vtk_id.SetName(scal)
+  surf.GetPointData().AddArray(vtk_id)
+  return surf
+
+
+
+
 
 def GetSurfProp(surf_unit):     
     surf = utils.ComputeNormals(surf_unit)
@@ -293,9 +323,9 @@ def GetSurfProp(surf_unit):
 
 
 if __name__ == "__main__":
-  if len (sys.argv) < 8:
+  if len (sys.argv) < 10:
     print("Usage: CrownSegmentationcli <inp> <out> <rot> <res> <model> <scal> <sepOutputs> <logPath>")
     sys.exit (1)
 
   if sys.argv[1] != '-1':
-    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7], sys.argv[8])
+    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7], sys.argv[8], sys.argv[9])
