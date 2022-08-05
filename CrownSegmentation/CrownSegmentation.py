@@ -71,7 +71,7 @@ automatically install all dependencies before starting the prediction. <br><br>
 When prediction is over, you can open the output surface as a MRML node in Slicer by pushing the "Open output surface".
 You can change the color table in Slicer's "Models" module. <br><br>
 
-More help can be found on the <a href="https://github.com/MathieuLeclercq/SlicerJawSegmentation">Github repository</a> for the extension.
+More help can be found on the <a href="https://github.com/DCBIA-OrthoLab/SlicerDentalModelSeg">Github repository</a> for the extension.
 """
     # TODO: replace with organization, grant and thanks
     self.parent.acknowledgementText = """

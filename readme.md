@@ -1,15 +1,22 @@
 
 # Automated 3D Jaw Scan Segmentation and Labeling
 
-JawSegmentation is an extension for 3D Slicer, a free, open-source software for medical, biomedical and related imaging research.
+DentalModelSeg is an extension for 3D Slicer, a free, open-source software for medical, biomedical and related imaging research.
 This extension aims to provide a Graphical User Interface for a deep-learning teeth segmentation tool that we developed at the University of North Carolina in Chapel Hill. This tool takes 3D IOS scans of jaws and automatically labels the teeth. The dental crowns are labeled according to the [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System).
 
 
-# How to run the extension
+# How to use the extension
  
+## Installation
+
+You can download the extension on the Slicer Extension Manager. Slicer needs to restart after installation.
+
+
 
 ## Running the module
 
+
+ - You will find the module under the name "CrownSegmentation - Fiboseg" in the "Segmentation" tab.
  - The input file must be a .vtk file or a MRMLModelNode  of a IOS scan for a lower or upper jaw, or a folder containing .vtk files of jaws. The model
    works better with models of jaws with no wisdom teeth. You can find
    examples in the "Examples" folder.
