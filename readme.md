@@ -5,12 +5,16 @@ DentalModelSeg is an extension for 3D Slicer, a free, open-source software for m
 This extension aims to provide a Graphical User Interface for a deep-learning teeth segmentation tool that we developed at the University of North Carolina in Chapel Hill. This tool takes 3D IOS scans of jaws and automatically labels the teeth. The dental crowns are labeled according to the [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System).
 
 
+# Requirements
+
+ - This extension only works with Linux for now. We are working on making it compatible with Windows.
+ - The extension requires your GPU to support CUDA.
+
 # How to use the extension
  
 ## Installation
 
 You can download the extension on the Slicer Extension Manager. Slicer needs to restart after installation.
-
 
 
 ## Running the module
