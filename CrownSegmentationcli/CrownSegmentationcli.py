@@ -23,7 +23,7 @@ def InstallDependencies():
   if system == "Linux":
     pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html') # pytorch3d
   else:
-    pip_install("git+https://github.com/facebookresearch/pytorch3d.git")
+    pip_install("--force-reinstall git+https://github.com/facebookresearch/pytorch3d.git --user")
 
 if sys.argv[1] == '-1':
   InstallDependencies()
@@ -256,7 +256,6 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,chooseFDI,log_path):
 
 
     if chooseFDI:
-      print(f'chooseFDI: {chooseFDI}')
       surf = ConvertFDI(surf,scal)
     
     if sepOutputs:
