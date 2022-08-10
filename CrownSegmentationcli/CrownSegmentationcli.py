@@ -15,15 +15,20 @@ def InstallDependencies():
   pip_install('tqdm==4.64.0') # tqdm
   pip_install('pandas==1.4.2') # pandas
   #pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
-  pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+  # pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+  pip_install('torch==1.12.0 torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113')
   pip_install('itk==5.2.1.post1') # itk
   pip_install('monai==0.7.0') # monai
   pip_install('fvcore==0.1.5.post20220504')
   pip_install('iopath==0.1.9')
   if system == "Linux":
-    pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html') # pytorch3d
+    # pip_install('--force-reinstall --no-deps --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1120/download.html') # pytorch3d
+    
+    code_path = '/'.join(os.path.dirname(os.path.abspath(__file__)).split('/'))
+    print(code_path)
+    pip_install(f'{code_path}/_CrownSegmentationcli/pytorch3d-0.7.0-cp39-cp39-linux_x86_64.whl') # py39_cu113_pyt1120
   else:
-    pip_install("--force-reinstall git+https://github.com/facebookresearch/pytorch3d.git --user")
+    pip_install("--force-reinstall git+https://github.com/facebookresearch/pytorch3d.git")
 
 if sys.argv[1] == '-1':
   InstallDependencies()
@@ -46,14 +51,16 @@ else:
     import torch
     pyt_version_str=torch.__version__.split("+")[0].replace(".", "")
     version_str="".join([f"py3{sys.version_info.minor}_cu",torch.version.cuda.replace(".",""),f"_pyt{pyt_version_str}"])  
-    if version_str != 'py39_cu113_pyt1110':
+    if version_str != 'py39_cu113_pyt1120':
       raise ImportError
   except ImportError:
-    pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+    # pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+    pip_install('--force-reinstall torch==1.12.0 torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113')
+
 
   try:
     import pytorch3d
-    if pytorch3d.__version__ != '0.6.2':
+    if pytorch3d.__version__ != '0.7.0':
       raise ImportError
   except ImportError:
     InstallDependencies()
@@ -198,8 +205,9 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,chooseFDI,log_path):
       textures = TexturesVertex(verts_features=CN)
       meshes = Meshes(verts=V, faces=F, textures=textures)
       image = phong_renderer(meshes_world=meshes.clone(), R=R, T=T)
-      pix_to_face, zbuf, bary_coords, dists = phong_renderer.rasterizer(meshes.clone())
-      depth_map = zbuf
+      rast = phong_renderer.rasterizer(meshes.clone())
+      pix_to_face = rast.pix_to_face
+      depth_map = rast.zbuf
       image = torch.cat([image[:,:,:,0:3], depth_map], dim=-1)
       pix_to_face = pix_to_face.squeeze()
       image = image.permute(0,3,1,2)

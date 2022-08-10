@@ -198,8 +198,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     
 
     #initialize variables
-    if qt.QSettings().value('JawSeg_ModelPath') != None:
-      self.ui.modelLineEdit.setText(qt.QSettings().value('JawSeg_ModelPath'))
+    if qt.QSettings().value('TeethSeg_ModelPath') != None:
+      self.ui.modelLineEdit.setText(qt.QSettings().value('TeethSeg_ModelPath'))
     self.model = self.ui.modelLineEdit.text
     self.input = self.ui.surfaceLineEdit.text
     self.outputFolder = self.ui.outputLineEdit.text
@@ -210,6 +210,15 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
     self.chooseFDI = self.ui.labelComboBox.currentIndex
     #print(self.MRMLNode.GetName())
+
+
+    if qt.QSettings().value('TeethSegVisited') == None:
+        msg = qt.QMessageBox()
+        msg.setText(f'Welcome to this module!\n'
+          'The module works with Linux only. You also need a CUDA capable GPU.\n'
+          'If you are running it for the first time, The installation of the dependencies will take time.\n' )
+        msg.setWindowTitle("Welcome!")
+        msg.exec_()
 
 
     # Make sure parameter node is initialized (needed for module reload)
@@ -434,7 +443,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.dependenciesButton.setEnabled(False)
     self.ui.applyChangesButton.setEnabled(False)
     self.ui.installProgressBar.setEnabled(True)
-    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0,0,0) # -1: flag so that CLI module knows it's only to install dependencies
+    self.installLogic = CrownSegmentationLogic('-1',0,0,0,0,0,0,0,0) # -1: flag so that CLI module knows it's only to install dependencies
     self.installLogic.process()
     self.ui.installProgressBar.setRange(0,0)
     self.installObserver = self.installLogic.cliNode.AddObserver('ModifiedEvent',self.onInstallationProgress)
@@ -604,7 +613,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.progressBar.setTextVisible(True)
     self.ui.progressLabel.setHidden(False)
 
-    qt.QSettings().setValue("JawSeg_ModelPath",self.model)
+    qt.QSettings().setValue("TeethSeg_ModelPath",self.model)
+    qt.QSettings().setValue("TeethSegVisited",1)
 
 
 
