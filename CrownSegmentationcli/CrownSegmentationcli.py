@@ -22,13 +22,16 @@ def InstallDependencies():
   pip_install('fvcore==0.1.5.post20220504')
   pip_install('iopath==0.1.9')
   if system == "Linux":
-    # pip_install('--force-reinstall --no-deps --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1120/download.html') # pytorch3d
-    
-    code_path = '/'.join(os.path.dirname(os.path.abspath(__file__)).split('/'))
-    print(code_path)
-    pip_install(f'{code_path}/_CrownSegmentationcli/pytorch3d-0.7.0-cp39-cp39-linux_x86_64.whl') # py39_cu113_pyt1120
+    try:
+      code_path = '/'.join(os.path.dirname(os.path.abspath(__file__)).split('/'))
+      print(code_path)
+      pip_install(f'{code_path}/_CrownSegmentationcli/pytorch3d-0.7.0-cp39-cp39-linux_x86_64.whl') # py39_cu113_pyt1120
+    except:
+      pip_install('--force-reinstall --no-deps --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1120/download.html')
+
   else:
-    pip_install("--force-reinstall git+https://github.com/facebookresearch/pytorch3d.git")
+    raise Exception('Module only works with Linux systems.')
+    # pip_install("--force-reinstall git+https://github.com/facebookresearch/pytorch3d.git")
 
 if sys.argv[1] == '-1':
   InstallDependencies()
@@ -265,7 +268,10 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,chooseFDI,log_path):
 
     if chooseFDI:
       surf = ConvertFDI(surf,scal)
-    
+      gum_label = 0
+    else:
+      gum_label = 33
+
     if sepOutputs:
     # Isolate each label
       surf_point_data = surf.GetPointData().GetScalars(scal) 
@@ -273,13 +279,13 @@ def main(surf,out,rot,res,unet_model,scal,sepOutputs,chooseFDI,log_path):
       out_basename = output[:-4]
       for label in tqdm(labels, desc = 'Isolating labels'):
         thresh_label = post_process.Threshold(surf, scal ,label-0.5,label+0.5)
-        if label != 33:
+        if label != gum_label:
           utils.Write(thresh_label,f'{out_basename}_id_{label}.vtk',print_out=False) 
         else:
           # gum
           utils.Write(thresh_label,f'{out_basename}_gum.vtk',print_out=False) 
       # all teeth 
-      no_gum = post_process.Threshold(surf, scal ,33-0.5,33+0.5,invert=True)
+      no_gum = post_process.Threshold(surf, scal ,gum_label-0.5,gum_label+0.5,invert=True)
       utils.Write(no_gum,f'{out_basename}_all_teeth.vtk',print_out=False)
 
 

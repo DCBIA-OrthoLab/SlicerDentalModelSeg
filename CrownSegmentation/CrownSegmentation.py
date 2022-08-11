@@ -211,14 +211,18 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.chooseFDI = self.ui.labelComboBox.currentIndex
     #print(self.MRMLNode.GetName())
 
-
-    if qt.QSettings().value('TeethSegVisited') == None:
-        msg = qt.QMessageBox()
-        msg.setText(f'Welcome to this module!\n'
+    # qt.QSettings().setValue("TeethSegVisited",None)
+    if qt.QSettings().value('TeethSegVisited') is None:
+        self.msg = qt.QMessageBox()
+        self.msg.setText(f'Welcome to this module!\n'
           'The module works with Linux only. You also need a CUDA capable GPU.\n'
           'If you are running it for the first time, The installation of the dependencies will take time.\n' )
-        msg.setWindowTitle("Welcome!")
-        msg.exec_()
+        self.msg.setWindowTitle("Welcome!")
+        self.cb = qt.QCheckBox()
+        self.cb.setText("Don't show this again")
+        self.cb.stateChanged.connect(self.onCBchecked)
+        self.msg.setCheckBox(self.cb)
+        self.msg.exec_()
 
 
     # Make sure parameter node is initialized (needed for module reload)
@@ -326,6 +330,17 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self._parameterNode.EndModify(wasModified)
 
 
+
+
+
+  def onCBchecked(self):
+    state = self.cb.checkState()
+    if state==0:
+      qt.QSettings().setValue("TeethSegVisited",None)
+    else:
+      qt.QSettings().setValue("TeethSegVisited",1)
+
+      
 
   ###
   ### INPUTS
