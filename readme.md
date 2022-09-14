@@ -1,8 +1,8 @@
 
-# Automated 3D Jaw Scan Segmentation and Labeling
+# Automated 3D Dental Model Segmentation and Labeling
 
 DentalModelSeg is an extension for 3D Slicer, a free, open-source software for medical, biomedical and related imaging research.
-This extension aims to provide a Graphical User Interface for a deep-learning teeth segmentation tool that we developed at the University of North Carolina in Chapel Hill. This tool takes 3D IOS scans of jaws and automatically labels the teeth. The dental crowns can be labeled according to the [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System), or the [FDI World Dental Federation notation](https://en.wikipedia.org/wiki/FDI_World_Dental_Federation_notation).
+This extension aims to provide a Graphical User Interface for a deep-learning teeth segmentation tool that we developed at the University of North Carolina in Chapel Hill in collaboration with the University of Michigan in Ann Arbor. This tool takes 3D Intar Oral Surface (IOS) scans of teeth and automatically labels them. The dental crowns can be labeled according to the [Universal Number System](https://en.wikipedia.org/wiki/Universal_Numbering_System), or the [FDI World Dental Federation notation](https://en.wikipedia.org/wiki/FDI_World_Dental_Federation_notation).
 
 ![Screenshot of the Module](examples/screenshot_module.png?raw=true)
 
