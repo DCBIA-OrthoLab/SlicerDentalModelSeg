@@ -18,25 +18,25 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="ctkCollapsibleButton" name="paramCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="paramCollapsibleButton" native="true">
      <property name="font">
       <font>
        <italic>false</italic>
       </font>
      </property>
-     <property name="text">
+     <property name="text" stdset="0">
       <string>Inputs</string>
      </property>
-     <property name="checkable">
+     <property name="checkable" stdset="0">
       <bool>true</bool>
      </property>
-     <property name="checked">
+     <property name="checked" stdset="0">
       <bool>true</bool>
      </property>
-     <property name="collapsed">
+     <property name="collapsed" stdset="0">
       <bool>false</bool>
      </property>
-     <property name="flat">
+     <property name="flat" stdset="0">
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
@@ -100,11 +100,11 @@
        </widget>
       </item>
       <item row="8" column="1">
-       <widget class="qMRMLNodeComboBox" name="MRMLNodeComboBox">
+       <widget class="qMRMLNodeComboBox" name="MRMLNodeComboBox" native="true">
         <property name="enabled">
          <bool>true</bool>
         </property>
-        <property name="nodeTypes">
+        <property name="nodeTypes" stdset="0">
          <stringlist>
           <string>vtkMRMLModelNode</string>
          </stringlist>
@@ -150,36 +150,36 @@
       <item row="13" column="0">
        <widget class="QLabel" name="label_3">
         <property name="text">
-         <string>Number of views: </string>
+         <string>Subdivision level</string>
         </property>
        </widget>
       </item>
       <item row="13" column="1">
        <widget class="QSpinBox" name="rotationSpinBox">
         <property name="minimum">
-         <number>15</number>
+         <number>1</number>
         </property>
         <property name="maximum">
-         <number>120</number>
+         <number>10</number>
         </property>
         <property name="singleStep">
          <number>0</number>
         </property>
         <property name="value">
-         <number>45</number>
+         <number>4</number>
         </property>
        </widget>
       </item>
       <item row="14" column="1">
        <widget class="QSlider" name="rotationSlider">
         <property name="minimum">
-         <number>15</number>
+         <number>1</number>
         </property>
         <property name="maximum">
-         <number>120</number>
+         <number>10</number>
         </property>
         <property name="value">
-         <number>45</number>
+         <number>4</number>
         </property>
         <property name="tracking">
          <bool>true</bool>
@@ -289,14 +289,14 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="advancedCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="advancedCollapsibleButton" native="true">
      <property name="enabled">
       <bool>true</bool>
      </property>
-     <property name="text">
+     <property name="text" stdset="0">
       <string>Advanced</string>
      </property>
-     <property name="collapsed">
+     <property name="collapsed" stdset="0">
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_3">
@@ -425,8 +425,8 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="outputsCollapsibleButton">
-     <property name="text">
+    <widget class="ctkCollapsibleButton" name="outputsCollapsibleButton" native="true">
+     <property name="text" stdset="0">
       <string>Outputs</string>
      </property>
      <layout class="QFormLayout" name="formLayout_4">

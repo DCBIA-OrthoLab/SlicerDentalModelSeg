@@ -31,8 +31,8 @@
     </string>
 
     <integer>
-      <name>rotation</name>
-      <label>rotation</label>
+      <name>subdivision_level</name>
+      <label>subdivision_level</label>
       <index>2</index>
       <description>Number of rotations</description>
     </integer>
@@ -59,12 +59,12 @@
     </string>
 
 
-    <boolean>
+    <integer>
       <name>sepOutputs</name>
       <label>sepOutputs</label>
       <index>6</index>
       <description>Multiple output files.</description>
-    </boolean>
+    </integer>
 
     <integer>
       <name>chooseFDI</name>
