@@ -1,9 +1,18 @@
 #!/usr/bin/env python-real
-print("Importing libraries...")
+
 from slicer.util import pip_install
-import os
+import argparse
 import sys
-import glob
+import pandas as pd
+import torch
+from tqdm import tqdm
+import os
+import numpy as np
+
+
+
+
+
 
 
 def InstallDependencies():
@@ -80,266 +89,159 @@ else:
   except ImportError:
     pip_install('monai==0.7.0')
 
-  import _CrownSegmentationcli.utils as utils
-  import _CrownSegmentationcli.post_process as post_process
-  import argparse
-  import numpy as np
-  import math
-  from vtk import vtkPolyDataWriter
-  from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
-  # datastructures
-  from pytorch3d.structures import Meshes
-
-  # rendering components
-  from pytorch3d.renderer import (
-      FoVPerspectiveCameras, look_at_rotation, 
-      RasterizationSettings, MeshRenderer, MeshRasterizer, HardPhongShader, PointLights,AmbientLights,TexturesVertex
-  )
-
-  # monai imports
-  import monai
-  from monai.inferers import (sliding_window_inference,SimpleInferer)
-  from monai.transforms import ToTensor
-
-  print("Initializing model...",flush=True)
-
-  # Set the cuda device 
-  if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    torch.cuda.set_device(device)
-  else:
-    device = torch.device("cpu") 
 
 
-def main(surf,out,rot,res,unet_model,scal,sepOutputs,chooseFDI,log_path):
-  if sepOutputs == 'true':
-    sepOutputs = True
-  else:
-    sepOutputs = False
 
-  with open(log_path,'w') as log_f:
-    # clear log file
-    log_f.truncate(0)
-  progress = 0
-
-  # Initialize a perspective camera.
-  cameras = FoVPerspectiveCameras(device=device)
-  image_size = res
-
-  # We will also create a Phong renderer. This is simpler and only needs to render one face per pixel.
-  raster_settings = RasterizationSettings(
-      image_size=image_size, 
-      blur_radius=0, 
-      faces_per_pixel=1, 
-  )
-  lights = AmbientLights(device=device)
-  rasterizer = MeshRasterizer(
-          cameras=cameras, 
-          raster_settings=raster_settings
-      )
-  phong_renderer = MeshRenderer(
-      rasterizer=rasterizer,
-      shader=HardPhongShader(device=device, cameras=cameras, lights=lights)
-  )
-  num_classes = 34
-
-  model = monai.networks.nets.UNet(
-      spatial_dims=2,
-      in_channels=4,   # images: torch.cuda.FloatTensor[batch_size,224,224,4]
-      out_channels=num_classes, 
-      channels=(16, 32, 64, 128, 256),
-      strides=(2, 2, 2, 2),
-      num_res_units=2,
-  ).to(device)
-
-  model.load_state_dict(torch.load(unet_model))
-  
-
-  softmax = torch.nn.Softmax(dim=1)
-
-  nb_rotations = rot
-  l_outputs = []
-
-  ## Camera position
-  dist_cam = 1.35
-  
-
-  path = surf
-  if os.path.isdir(path):
-    l_inputs = glob.glob(f"{path}/*.vtk")
-    if not (os.path.isdir(out)):
-      raise Exception ('The input is a folder, but the output is not.')
-  elif os.path.isfile(path):
-    l_inputs = [path]
-  else:
-    raise Exception ('Incorrect input.')
+from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
+from torch.utils.data import DataLoader
 
 
-  for index,path in enumerate(l_inputs):
-
-    print(f'\nFile {index+1}/{len(l_inputs)}:')
-
-    SURF = utils.ReadSurf(path)
-    if os.path.isdir(out):
-      output = f'{out}/{os.path.splitext(os.path.basename(path))[0]}_out.vtk'
-    else:
-      output = out
-
-    surf_unit = utils.GetUnitSurf(SURF)
-
-    num_faces = int(SURF.GetPolys().GetData().GetSize()/4)   
-   
-    array_faces = np.zeros((num_classes,num_faces))
-    model.eval() # Switch to eval mode
-    simple_inferer = SimpleInferer()
 
 
-    (V, F, CN) = GetSurfProp(surf_unit)  # 0.7s to compute : now 0.45s 
-    list_sphere_points = fibonacci_sphere(samples=nb_rotations, dist_cam=dist_cam)
-    list_sphere_points[0] = (0.0001, 1.35, 0.0001) # To avoid "invalid rotation matrix" error
-    list_sphere_points[-1] = (0.0001, -1.35, 0.0001)
 
-    ## PREDICTION
-    for coords in tqdm(list_sphere_points, desc = 'Prediction      '):
-      camera_position = ToTensor(dtype=torch.float32, device=device)([list(coords)])
-      R = look_at_rotation(camera_position, device=device)  # (1, 3, 3)
-      T = -torch.bmm(R.transpose(1, 2), camera_position[:,:,None])[:, :, 0]   # (1, 3)
 
-      textures = TexturesVertex(verts_features=CN)
-      meshes = Meshes(verts=V, faces=F, textures=textures)
-      image = phong_renderer(meshes_world=meshes.clone(), R=R, T=T)
-      rast = phong_renderer.rasterizer(meshes.clone())
-      pix_to_face = rast.pix_to_face
-      depth_map = rast.zbuf
-      image = torch.cat([image[:,:,:,0:3], depth_map], dim=-1)
-      pix_to_face = pix_to_face.squeeze()
-      image = image.permute(0,3,1,2)
-      inputs = image.to(device)
-      outputs = simple_inferer(inputs,model)  
-      outputs_softmax = softmax(outputs).squeeze().detach().cpu().numpy() # t: negligeable  
+from __CrownSegmentation import (MonaiUNet, TeethDataset, UnitSurfTransform, Write, RemoveIslands, 
+                   DilateLabel, ErodeLabel, Threshold, ConvertFDI)
+
+
+
+
+
+
+def main(args):
+    print('strat crown segmentation')
+    print(f' args {args}')
+
+
         
-      for x in range(image_size):
-          for y in range (image_size): # Browse pixel by pixel
-              array_faces[:,pix_to_face[x,y]] += outputs_softmax[...,x,y]
+    with open(args.logPath,'w') as log_f:
+        # clear log file
+        log_f.truncate(0)
 
-      progress += 1
-      with open(log_path,'r+') as log_f:
-        log_f.write(str(progress))     
+
+    class_weights = None
+    out_channels = 34
+
+    model = MonaiUNet( out_channels = out_channels, class_weights=class_weights, image_size=args.resolution, subdivision_level=args.subdivision_level)
+
+    model.model.module.load_state_dict(torch.load(args.model))
+
+
+    ds = TeethDataset(args.input, transform=UnitSurfTransform())
+
+    dataloader = DataLoader(ds, batch_size=1, num_workers=4, persistent_workers=True, pin_memory=True)
     
 
-    array_faces[:,-1][0] = 0 # pixels that are background (id: 0) =-1
-    faces_argmax = np.argmax(array_faces,axis=0)
-    mask = 33 * (faces_argmax == 0) # 0 when face is not assigned to any pixel : we change that to the ID of the gum
-    final_faces_array = faces_argmax + mask
-    unique, counts  = np.unique(final_faces_array, return_counts = True)
+    device = torch.device('cuda')
+    model.to(device)
+    model.eval()
 
-    surf = SURF
-    nb_points = surf.GetNumberOfPoints()
-    polys = surf.GetPolys()
-    np_connectivity = vtk_to_numpy(polys.GetConnectivityArray())
+    softmax = torch.nn.Softmax(dim=2)
 
-    id_points = np.full((nb_points,),33) # fill with ID 33 (gum)
+    with torch.no_grad():
 
-    for index,uid in enumerate(final_faces_array.tolist()):
-        id_points[np_connectivity[3*index]] = uid
+        for idx, batch in enumerate(dataloader):
 
-    vtk_id = numpy_to_vtk(id_points)
-    vtk_id.SetName(scal)
-    surf.GetPointData().AddArray(vtk_id)
+            V, F, CN = batch
 
-    ## POST-PROCESS
+            V = V.cuda(non_blocking=True)
+            F = F.cuda(non_blocking=True)
+            CN = CN.cuda(non_blocking=True).to(torch.float32)
 
-    # Remove Islands
-    # start with gum
-    post_process.RemoveIslands(surf, vtk_id, 33, 500,ignore_neg1 = True) 
+            x, X, PF = model((V, F, CN))
+            x = softmax(x*(PF>=0))
 
-    for label in tqdm(range(num_classes),desc = 'Removing islands'):
-      post_process.RemoveIslands(surf, vtk_id, label, 200,ignore_neg1 = True)  
-      progress += 1
+            P_faces = torch.zeros(out_channels, F.shape[1]).to(device)
+            V_labels_prediction = torch.zeros(V.shape[1]).to(device).to(torch.int64)
 
+            PF = PF.squeeze()
+            x = x.squeeze()
 
-    # CLOSING OPERATION
-    #one tooth at a time
-    for label in tqdm(range(num_classes),desc = 'Closing operation'):
-        post_process.DilateLabel(surf, vtk_id, label, iterations=2, dilateOverTarget=False, target=None) 
-        post_process.ErodeLabel(surf, vtk_id, label, iterations=2, target=None) 
+            for pf, pred in zip(PF, x):
+                P_faces[:, pf] += pred
 
+            P_faces = torch.argmax(P_faces, dim=0)
 
+            faces_pid0 = F[0,:,0]
+            V_labels_prediction[faces_pid0] = P_faces
 
-    if chooseFDI:
-      surf = ConvertFDI(surf,scal)
-      gum_label = 0
-    else:
-      gum_label = 33
+            surf = ds.getSurf(idx)
 
-    if sepOutputs:
-    # Isolate each label
-      surf_point_data = surf.GetPointData().GetScalars(scal) 
-      labels = np.unique(surf_point_data)
-      out_basename = output[:-4]
-      for label in tqdm(labels, desc = 'Isolating labels'):
-        thresh_label = post_process.Threshold(surf, scal ,label-0.5,label+0.5)
-        if label != gum_label:
-          utils.Write(thresh_label,f'{out_basename}_id_{label}.vtk',print_out=False) 
-        else:
-          # gum
-          utils.Write(thresh_label,f'{out_basename}_gum.vtk',print_out=False) 
-      # all teeth 
-      no_gum = post_process.Threshold(surf, scal ,gum_label-0.5,gum_label+0.5,invert=True)
-      utils.Write(no_gum,f'{out_basename}_all_teeth.vtk',print_out=False)
+            V_labels_prediction = numpy_to_vtk(V_labels_prediction.cpu().numpy())
+            V_labels_prediction.SetName(args.predictedId)
+            surf.GetPointData().AddArray(V_labels_prediction)
 
 
-    # Output: all teeth + gum
-    utils.Write(surf,output)
-  print("Done.")
-
-
-def fibonacci_sphere(samples, dist_cam):
-
-    points = []
-    phi = math.pi * (3. -math.sqrt(5.))  # golden angle in radians
-    for i in range(samples):
-        y = 1 - (i / float(samples - 1)) * 2  # y goes from 1 to -1
-        radius = math.sqrt(1 - y*y)  # radius at y
-        theta = phi*i 
-        x = math.cos(theta)*radius
-        z = math.sin(theta)*radius
-        points.append((x*dist_cam, y*dist_cam, z*dist_cam))
-    return points
-
-def ConvertFDI(surf, scal):
-  print('Converting to FDI...')
-
-  LUT = np.array([0,18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28,
-                  38,37,36,35,34,33,32,31,41,42,43,44,45,46,47,48,0])
-  # extract UniversalID array
-  labels = vtk_to_numpy(surf.GetPointData().GetScalars(scal))
-  
-  # convert to their numbering system
-  labels = LUT[labels]
-  vtk_id = numpy_to_vtk(labels)
-  vtk_id.SetName(scal)
-  surf.GetPointData().AddArray(vtk_id)
-  return surf
+            #Post Process
+            RemoveIslands(surf,V_labels_prediction,33,500, ignore_neg1=True)
+            for label in tqdm(range(out_channels),desc= 'Remove island'):
+                RemoveIslands(surf,V_labels_prediction, label, 200, ignore_neg1=True)
 
 
 
 
-
-def GetSurfProp(surf_unit):     
-    surf = utils.ComputeNormals(surf_unit)
-
-    color_normals = ToTensor(dtype=torch.float32, device=device)(vtk_to_numpy(utils.GetColorArray(surf, "Normals"))/255.0)
-    verts = ToTensor(dtype=torch.float32, device=device)(vtk_to_numpy(surf.GetPoints().GetData()))
-    faces = ToTensor(dtype=torch.int64, device=device)(vtk_to_numpy(surf.GetPolys().GetData()).reshape(-1, 4)[:,1:])
-    return verts.unsqueeze(0), faces.unsqueeze(0), color_normals.unsqueeze(0)
+            for label in tqdm(range(1,out_channels),desc= 'Closing operation'):
+                DilateLabel(surf,V_labels_prediction, label, iterations=2, dilateOverTarget=False, target = None)
+                ErodeLabel(surf,V_labels_prediction, label, iterations=2, target=None)
 
 
+            if args.chooseFDI :
+                surf = ConvertFDI(surf,args.predicteId)
+                gum_label = 0
+            else :
+                gum_label = 33
 
-if __name__ == "__main__":
-  if len (sys.argv) < 10:
-    print("Usage: CrownSegmentationcli <inp> <out> <rot> <res> <model> <scal> <sepOutputs> <chooseFDI> <logPath>")
-    sys.exit (1)
 
-  if sys.argv[1] != '-1':
-    main(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5],sys.argv[6], sys.argv[7], int(sys.argv[8]), sys.argv[9])
+
+
+            output_fn = os.path.join(args.output, ds.getName(idx))
+
+            output_dir = os.path.dirname(output_fn)
+
+            if(not os.path.exists(output_dir)):
+                os.makedirs(output_dir)
+
+
+
+
+            if args.sepOutputs:
+                # Isolate each label
+                surf_point_data = surf.GetPointData().GetScalars(args.predictedId) 
+                labels = np.unique(surf_point_data)
+                out_basename = output_fn[:-4]
+                for label in tqdm(labels, desc = 'Isolating labels'):
+                    thresh_label = Threshold(surf, args.predictedId ,label-0.5,label+0.5)
+                    if label != gum_label:
+                        Write(thresh_label,f'{out_basename}_id_{label}.vtk',print_out=False) 
+                    else:
+                    # gum
+                        Write(thresh_label,f'{out_basename}_gum.vtk',print_out=False) 
+                # all teeth 
+                no_gum = Threshold(surf, args.predictedId ,gum_label-0.5,gum_label+0.5,invert=True)
+                Write(no_gum,f'{out_basename}_all_teeth.vtk',print_out=False)
+
+
+            Write(surf , output_fn, print_out=False)
+
+            with open(args.logPath,'r+') as log_f :
+               log_f.write(str(idx))
+
+
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input',type=str)
+    parser.add_argument('output',type=str)
+    parser.add_argument('subdivision_level',type = int)
+    parser.add_argument('resolution',type=int)
+    parser.add_argument('model',type=str)
+    parser.add_argument('predictedId',type=str)
+    parser.add_argument('sepOutputs',type=int)
+    parser.add_argument('chooseFDI',type=int)
+    parser.add_argument('logPath',type=str)
+
+    args = parser.parse_args()
+    main(args)
+

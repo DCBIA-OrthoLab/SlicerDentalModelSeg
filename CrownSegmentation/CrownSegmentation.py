@@ -642,7 +642,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         # if progress was made
         self.time_log = time
         self.progress += 1
-        progressbar_value = self.progress /((self.currentPredDict['rotation']+2) * self.nbFiles) * 100
+        progressbar_value = (self.progress -1) /self.nbFiles * 100
         #print(f'progressbar value {progressbar_value}')
         if progressbar_value < 100 :
           self.ui.progressBar.setValue(progressbar_value)
@@ -748,12 +748,12 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     parameters = {}
     parameters ["input"] = self.input
     parameters ["output"] = self.output
-    parameters ["rotation"] = self.rotation
+    parameters ["subdivision_level"] = self.rotation
     parameters ['resolution'] = self.resolution
     parameters ['model'] = self.model
     parameters ['predictedId'] = self.predictedId
-    parameters ['sepOutputs'] = self.sepOutputs
-    parameters ['chooseFDI'] = self.chooseFDI
+    parameters ['sepOutputs'] = int(self.sepOutputs)
+    parameters ['chooseFDI'] = int(self.chooseFDI)
     parameters ['logPath'] = self.logPath
     print ('parameters : ', parameters)
     flybyProcess = slicer.modules.crownsegmentationcli
