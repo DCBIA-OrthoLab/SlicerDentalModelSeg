@@ -3,9 +3,6 @@
 from slicer.util import pip_install
 import argparse
 import sys
-import pandas as pd
-import torch
-from tqdm import tqdm
 import os
 import numpy as np
 
@@ -26,7 +23,6 @@ def InstallDependencies():
   #pip_install('--no-cache-dir torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/torch_stable.html') # torch
   # pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
   pip_install('torch==1.12.0 torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113')
-  pip_install('itk==5.2.1.post1') # itk
   pip_install('monai==0.7.0') # monai
   pip_install('fvcore==0.1.5.post20220504')
   pip_install('iopath==0.1.9')
@@ -53,6 +49,7 @@ else:
     from tqdm import tqdm
   except ImportError:
     pip_install('tqdm==4.64.0')
+    from tqdm import tqdm
 
   try:
     import pandas
@@ -68,6 +65,7 @@ else:
   except ImportError:
     # pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
     pip_install('--force-reinstall torch==1.12.0 torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113')
+    import torch
 
 
   try:
@@ -77,10 +75,6 @@ else:
   except ImportError:
     InstallDependencies()
     
-  try:
-    import itk
-  except ImportError:
-    pip_install('itk==5.2.1.post1')
 
   try:
     import monai
@@ -88,6 +82,12 @@ else:
       raise ImportError
   except ImportError:
     pip_install('monai==0.7.0')
+
+
+try: 
+   import pytorch_lightning
+except ImportError :
+   pip_install('pytorch_lightning==1.7.7')
 
 
 
