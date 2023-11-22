@@ -1,10 +1,14 @@
+from slicer.util import pip_install
 
+import os
+import shutil
+import time
 
-import torch
-from torch import  nn
-
-
-import torchmetrics
+try : 
+    import torchmetrics
+except ImportError :
+    pip_install("torchmetrics --upgrade")
+    import torchmetrics
 
 from __CrownSegmentation.utils import PolyDataToTensors, CreateIcosahedron
 
@@ -15,7 +19,24 @@ from pytorch3d.renderer import (
 )
 from pytorch3d.structures import Meshes
 
-import pytorch_lightning as pl
+try : 
+    import pytorch_lightning as pl
+except ImportError : 
+    pip_install("pytorch_lightning==2.1")
+    import pytorch_lightning as pl
+
+try : 
+    import torch
+    version = torch.__version__
+    if "1.12" not in version :
+        pip_install("torch==1.12")
+    import torch
+except ImportError :
+    pip_install("torch==1.12")
+    import torch
+
+from torch import  nn
+
 from time import time
 from tqdm import tqdm
 

@@ -87,7 +87,9 @@ else:
 try: 
    import pytorch_lightning
 except ImportError :
-   pip_install('pytorch_lightning==1.7.7')
+  #  pip_install('pytorch_lightning==1.7.7')
+   pip_install('pytorch_lightning==2.1')
+   import pytorch_lightning
 
 
 
