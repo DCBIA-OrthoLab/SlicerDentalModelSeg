@@ -1,38 +1,61 @@
-from slicer.util import pip_install
-
 import os
 import shutil
 import time
 
-try : 
-    import torchmetrics
-except ImportError :
-    pip_install("torchmetrics --upgrade")
-    import torchmetrics
+import os
 
-from __CrownSegmentation.utils import PolyDataToTensors, CreateIcosahedron
+actual_path = os.path.abspath(__file__)
 
-import monai
-from pytorch3d.renderer import (
-        FoVPerspectiveCameras, look_at_rotation, 
-        RasterizationSettings, MeshRenderer, MeshRasterizer, HardPhongShader, AmbientLights,  TexturesVertex, 
-)
-from pytorch3d.structures import Meshes
+if actual_path.startswith('/mnt'):
+    system = "WSL"
+else:
+    system = "other"
 
-try : 
-    import pytorch_lightning as pl
-except ImportError : 
-    pip_install("pytorch_lightning==2.1")
-    import pytorch_lightning as pl
 
-try : 
-    import torch
-    version = torch.__version__
-    if "1.12" not in version :
+if system !="WSL" :
+    from slicer.util import pip_install
+    
+    try : 
+        import torchmetrics
+    except ImportError :
+        pip_install("torchmetrics --upgrade")
+        import torchmetrics
+
+    from __CrownSegmentation.utils import PolyDataToTensors, CreateIcosahedron
+
+    import monai
+    from pytorch3d.renderer import (
+            FoVPerspectiveCameras, look_at_rotation, 
+            RasterizationSettings, MeshRenderer, MeshRasterizer, HardPhongShader, AmbientLights,  TexturesVertex, 
+    )
+    from pytorch3d.structures import Meshes
+
+    try : 
+        import pytorch_lightning as pl
+    except ImportError : 
+        pip_install("pytorch_lightning==2.1")
+        import pytorch_lightning as pl
+
+    try : 
+        import torch
+        version = torch.__version__
+        if "1.12" not in version :
+            pip_install("torch==1.12")
+        import torch
+    except ImportError :
         pip_install("torch==1.12")
-    import torch
-except ImportError :
-    pip_install("torch==1.12")
+        import torch
+
+else : 
+    import torchmetrics
+    from .utils import PolyDataToTensors, CreateIcosahedron
+    import monai
+    from pytorch3d.renderer import (
+            FoVPerspectiveCameras, look_at_rotation, 
+            RasterizationSettings, MeshRenderer, MeshRasterizer, HardPhongShader, AmbientLights,  TexturesVertex, 
+    )
+    from pytorch3d.structures import Meshes
+    import pytorch_lightning as pl
     import torch
 
 from torch import  nn
