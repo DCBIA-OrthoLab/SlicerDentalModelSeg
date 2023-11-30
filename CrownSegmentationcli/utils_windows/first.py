@@ -100,6 +100,7 @@ def createCondaEnv(name:str) :
     path_pip=f"~/miniconda3/envs/{name}/bin/pip"
     path_activate = f"~/miniconda3/bin/activate"
     install_commands = [
+    f"wsl -- bash -c \"source {path_activate} {name} && ~/miniconda3/bin/conda install -y -c conda-forge cudnn\"",
     f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install tqdm==4.64.0\"",
     f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install pandas==1.4.2\"",
     f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install torch==1.12.0 torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113\"",
@@ -111,6 +112,23 @@ def createCondaEnv(name:str) :
     f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install iopath==0.1.9\"",
     f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install --force-reinstall --no-deps --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1120/download.html\""
     ]
+    
+    install_commands = [
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install tqdm==4.64.0\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install pandas==1.4.2\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install pytorch_lightning==2.1\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install iopath==0.1.9\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install monai==0.7.0\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install --no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install fvcore\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install rpyc\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install vtk\"",
+    f"wsl -- bash -c \"source {path_activate} {name} && {path_pip} install scipy\""
+    ]
+
+
 
 
     for command in install_commands:
