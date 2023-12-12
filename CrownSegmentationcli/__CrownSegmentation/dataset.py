@@ -5,8 +5,17 @@ import os
 import torch
 
 import glob
+actual_path = os.path.abspath(__file__)
 
-from __CrownSegmentation.utils import ReadSurf, ComputeNormals, GetColorArray, GetUnitSurf, RandomRotation
+if actual_path.startswith('/mnt'):
+    system = "WSL"
+else:
+    system = "other"
+    
+if system!="WSL" :
+    from __CrownSegmentation.utils import ReadSurf, ComputeNormals, GetColorArray, GetUnitSurf, RandomRotation
+else : 
+    from .utils import ReadSurf, ComputeNormals, GetColorArray, GetUnitSurf, RandomRotation
 
 
 from vtk.util.numpy_support import vtk_to_numpy

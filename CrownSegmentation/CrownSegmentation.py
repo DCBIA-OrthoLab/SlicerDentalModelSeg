@@ -7,7 +7,8 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 from enum import Enum
-
+import subprocess
+import platform
 
 import webbrowser
 import json
@@ -373,7 +374,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
   def onGithubButton(self):
     # webbrowser.open('https://github.com/MathieuLeclercq/fly-by-cnn/blob/master/src/py/FiboSeg/best_metric_model_segmentation2d_array_v2_5.pth')
     # webbrowser.open('https://github.com/MathieuLeclercq/fly-by-cnn/blob/master/src/py/challenge-teeth/checkpoints/07-21-22_val-loss0.169.pth')
-    webbrowser.open('https://github.com/DCBIA-OrthoLab/SlicerDentalModelSeg/releases/tag/v3.0')
+    # webbrowser.open('https://github.com/DCBIA-OrthoLab/SlicerDentalModelSeg/releases/tag/v3.0')
+    webbrowser.open('https://github.com/DCBIA-OrthoLab/Fly-by-CNN/releases/tag/3.0')
 
 
   def onEditModelLine(self):
@@ -576,38 +578,59 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
     else:
       # Ready to start cli module
-      self.ui.applyChangesButton.setEnabled(False)
-      self.ui.progressBar.setEnabled(True)
-      if self.inputChoice is InputChoice.MRML_NODE: # MRML node
-        filename = self.writeVTKFromNode()
-        self.logic = CrownSegmentationLogic(filename,
-                                            self.output,
-                                            self.resolution, 
-                                            self.rotation,
-                                            self.model, 
-                                            self.predictedId,
-                                            self.ui.sepOutputsCheckbox.isChecked(),
-                                            self.chooseFDI,
-                                            self.log_path)
+      ready = True 
+      system = platform.system()
+      if system == "Windows" :
+          wsl = self.is_ubuntu_installed()
+          if wsl :
+            ready = True
+          else :
+            messageBox = qt.QMessageBox()
+            text = "Code can't be launch. \nWSL is not installed, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
+            ready = False
+            messageBox.information(None, "Information", text)
+              
+      if ready :
+        self.ui.applyChangesButton.setEnabled(False)
+        self.ui.progressBar.setEnabled(True)
+        if self.inputChoice is InputChoice.MRML_NODE: # MRML node
+          filename = self.writeVTKFromNode()
+          self.logic = CrownSegmentationLogic(filename,
+                                              self.output,
+                                              self.resolution, 
+                                              self.rotation,
+                                              self.model, 
+                                              self.predictedId,
+                                              self.ui.sepOutputsCheckbox.isChecked(),
+                                              self.chooseFDI,
+                                              self.log_path)
 
-      else: # input folder/file
-        self.logic = CrownSegmentationLogic(self.input,
-                                            self.output,
-                                            self.resolution, 
-                                            self.rotation,
-                                            self.model, 
-                                            self.predictedId, 
-                                            self.ui.sepOutputsCheckbox.isChecked(),
-                                            self.chooseFDI,
-                                            self.log_path)
+        else: # input folder/file
+          self.logic = CrownSegmentationLogic(self.input,
+                                              self.output,
+                                              self.resolution, 
+                                              self.rotation,
+                                              self.model, 
+                                              self.predictedId, 
+                                              self.ui.sepOutputsCheckbox.isChecked(),
+                                              self.chooseFDI,
+                                              self.log_path)
 
-      
-      self.logic.process()
-      #self.processObserver = self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
-      self.addObserver(self.logic.cliNode,vtk.vtkCommand.ModifiedEvent,self.onProcessUpdate)
-      self.onProcessStarted()
+        
+        self.logic.process()
+        #self.processObserver = self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
+        self.addObserver(self.logic.cliNode,vtk.vtkCommand.ModifiedEvent,self.onProcessUpdate)
+        self.onProcessStarted()
 
+  def is_ubuntu_installed(self)->bool:
+      '''
+      Check if wsl is install with Ubuntu
+      '''
+      result = subprocess.run(['wsl', '--list'], capture_output=True, text=True)
+      output = result.stdout.encode('utf-16-le').decode('utf-8')
+      clean_output = output.replace('\x00', '')  # Enlève tous les octets null
 
+      return 'Ubuntu' in clean_output
 
   def onProcessStarted(self):    
     self.currentPredDict["rotation"] = self.rotation

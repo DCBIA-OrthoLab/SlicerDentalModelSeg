@@ -5,7 +5,18 @@ from vtk.util.numpy_support import vtk_to_numpy
 from vtk.util.numpy_support import numpy_to_vtk
 from monai.transforms import ToTensor
 import torch
-import __CrownSegmentation.LinearSubdivisionFilter as lsf
+
+actual_path = os.path.abspath(__file__)
+
+if actual_path.startswith('/mnt'):
+    system = "WSL"
+else:
+    system = "other"
+    
+if system!="WSL" :
+    import __CrownSegmentation.LinearSubdivisionFilter as lsf
+else :
+    from __CrownSegmentation import LinearSubdivisionFilter as lsf
 
 
 def Write(vtkdata, output_name, print_out = True):
