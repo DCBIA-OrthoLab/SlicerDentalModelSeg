@@ -1,21 +1,60 @@
 import os
-import sys
 import glob
-import unittest
-import logging
-import vtk, qt, ctk, slicer
+import vtk, qt, slicer
 from slicer.ScriptedLoadableModule import *
-from slicer.util import VTKObservationMixin
+from slicer.util import VTKObservationMixin, pip_install
 from enum import Enum
 import subprocess
 import platform
 
-import webbrowser
-import json
+from CondaSetUp import  CondaSetUpCall,CondaSetUpCallWsl
 
+import webbrowser
+import csv
+import io
+import time
+import threading
+import sys
+
+from pathlib import Path
 #
 # CrownSegmentation
 #
+
+
+def func_import(install=False): 
+  try : 
+    import pkg_resources
+    shapeaxi_version = pkg_resources.get_distribution("shapeaxi").version 
+    print("Distribution    Found for shapeaxi")
+    # pytorch3d = pkg_resources.get_distribution("pytorch3d").version 
+    import pytorch3d
+    return True
+  except : 
+    print("ERROR")
+    if install :
+      pip_install("shapeaxi")
+      try:
+        import torch
+      except ImportError:
+        pip_install(f'torch')
+      try:
+        import pytorch3d
+      except ImportError:
+        try : 
+          import torch
+          pyt_version_str = torch.__version__.split("+")[0].replace(".", "")
+          version_str = "".join([f"py3{sys.version_info.minor}_cu", torch.version.cuda.replace(".", ""), f"_pyt{pyt_version_str}"])
+          pip_install('--upgrade pip')
+          pip_install('fvcore==0.1.5.post20220305')
+          pip_install(f'--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/{version_str}/download.html')
+        except:
+            pip_install('--no-cache-dir torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113')
+            pip_install('--no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu113_pyt1110/download.html')
+
+      return True
+    return False
+    
 
 class CrownSegmentation(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
@@ -122,6 +161,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.time_log = 0 # for progress bar
     self.progress = 0
     self.currentPredDict = {}
+    self.previous_time = 0
+    self.start_time = 0
 
 
   def setup(self):
@@ -168,6 +209,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.inputFolderLineEdit.textChanged.connect(self.onEditInputFolderLine)
     self.ui.modelLineEdit.textChanged.connect(self.onEditModelLine)    
     self.ui.githubButton.connect('clicked(bool)',self.onGithubButton)
+    self.ui.checkBoxLatestModel.stateChanged.connect(self.useLatestModel)
+    self.ui.checkBoxOverwrite.stateChanged.connect(self.overwrite)
     self.ui.surfaceComboBox.currentTextChanged.connect(self.onSurfaceModeChanged)
     self.ui.MRMLNodeComboBox.setMRMLScene(slicer.mrmlScene)
     self.ui.MRMLNodeComboBox.currentNodeChanged.connect(self.onNodeChanged)
@@ -196,6 +239,9 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.openOutFolderButton.setHidden(True)
     self.ui.cancelButton.setHidden(True)
     self.ui.doneLabel.setHidden(True)
+    self.ui.githubButton.setHidden(True)
+    self.ui.timeLabel.setHidden(True)
+    self.ui.progressBar.setHidden(True)
     
 
     #initialize variables
@@ -211,6 +257,17 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.MRMLNode = slicer.mrmlScene.GetNodeByID(self.ui.MRMLNodeComboBox.currentNodeID)
     self.chooseFDI = self.ui.labelComboBox.currentIndex
     #print(self.MRMLNode.GetName())
+
+    #Hidden
+    self.ui.rotationSpinBox.setHidden(True)
+    self.ui.label_3.setHidden(True)
+    self.ui.rotationSlider.setHidden(True)
+    self.ui.resolutionComboBox.setHidden(True)
+    self.ui.label.setHidden(True)
+    self.ui.dependenciesButton.setHidden(True)
+    self.ui.installProgressBar.setHidden(True)
+
+
 
     # qt.QSettings().setValue("TeethSegVisited",None)
     if qt.QSettings().value('TeethSegVisited') is None:
@@ -348,10 +405,13 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
   ###
 
   def onBrowseSurfaceButton(self):
-    newsurfaceFile = qt.QFileDialog.getOpenFileName(self.parent, "Select a surface",'',".vtk file (*.vtk)")
+    newsurfaceFile = qt.QFileDialog.getOpenFileName(self.parent, "Select a surface", '', "VTK and STL files (*.vtk *.stl)")
     if newsurfaceFile != '':
       self.input = newsurfaceFile
       self.ui.surfaceLineEdit.setText(self.input)
+
+    if self.ui.checkBoxOverwrite.checked :
+      self.ui.outputLineEdit.setText(os.path.dirname(self.ui.surfaceLineEdit.text))
     #print(f'Surface directory : {self.surfaceFile}')
 
 
@@ -361,6 +421,11 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       self.input = newInputFolder
       print(self.input)
       self.ui.inputFolderLineEdit.setText(self.input)
+
+    if self.ui.checkBoxOverwrite.checked :
+      self.ui.outputLineEdit.setText(self.ui.inputFolderLineEdit.text)
+
+    
     #print(f'Output directory : {self.output}')   
 
 
@@ -370,6 +435,37 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       self.model = newModel
       self.ui.modelLineEdit.setText(self.model)
     #print(f'Surface directory : {self.surfaceFile}')
+
+  def overwrite(self):
+    if self.ui.checkBoxOverwrite.checked:
+      self.ui.outputFileLineEdit.setEnabled(False)
+      self.ui.outputLineEdit.setEnabled(False)
+      self.ui.outputFileLineEdit.setText("None")
+      print(self.ui.surfaceLineEdit.text)
+      print(self.ui.surfaceComboBox.currentText)
+      if self.ui.surfaceComboBox.currentText=="Select file":
+        self.ui.outputLineEdit.setText(os.path.dirname(self.ui.surfaceLineEdit.text))
+      else : 
+        self.ui.outputLineEdit.setText(self.ui.inputFolderLineEdit.text)
+        print(self.ui.inputFolderLineEdit.text)
+
+
+    else : 
+      self.ui.outputFileLineEdit.setEnabled(True)
+      self.ui.outputLineEdit.setEnabled(True)
+      self.ui.outputFileLineEdit.setText("predict")
+
+
+  def useLatestModel(self):
+    if self.ui.checkBoxLatestModel.checked:
+      self.ui.browseModelButton.setEnabled(False)
+      self.ui.modelLineEdit.setEnabled(False)
+      self.ui.modelLineEdit.setText("latest")
+
+    else : 
+      self.ui.browseModelButton.setEnabled(True)
+      self.ui.modelLineEdit.setEnabled(True)
+
 
   def onGithubButton(self):
     # webbrowser.open('https://github.com/MathieuLeclercq/fly-by-cnn/blob/master/src/py/FiboSeg/best_metric_model_segmentation2d_array_v2_5.pth')
@@ -409,11 +505,13 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     self.ui.outputFileLabel.setHidden(False)
 
 
-    if choice == 'Select .vtk file':
+
+    if choice == 'Select file':
       self.inputChoice = InputChoice.VTK
       self.ui.surfaceLineEdit.setHidden(False)
       self.ui.browseSurfaceButton.setHidden(False)
       self.input = self.ui.surfaceLineEdit.text
+      self.ui.inputFolderLineEdit.setText("")
     elif choice == 'Select MRMLModelNode':
       self.inputChoice = InputChoice.MRML_NODE
       self.ui.MRMLNodeComboBox.setHidden(False)
@@ -422,9 +520,10 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       self.ui.inputFolderLineEdit.setHidden(False)
       self.ui.inputFolderPushButton.setHidden(False)
       self.input = self.ui.inputFolderLineEdit.text
-      self.ui.outputFileLineEdit.setText("")
-      self.ui.outputFileLabel.setHidden(True)
-      self.ui.outputFileLineEdit.setHidden(True)
+      # self.ui.outputFileLineEdit.setText("")
+      # self.ui.surfaceLineEdit.setText("")
+      # self.ui.outputFileLabel.setHidden(True)
+      # self.ui.outputFileLineEdit.setHidden(True)
 
 
 
@@ -530,9 +629,9 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
 
   def onApplyChangesButton(self):
-
+    self.ui.applyChangesButton.setEnabled(False)
     #if ((self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is not None) or os.path.isfile(self.input) or os.path.isdir(self.input))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
-    if not(os.path.isdir(self.outputFolder) and os.path.isfile(self.model)):
+    if not(os.path.isdir(self.outputFolder) and (os.path.isfile(self.model) or self.model=="latest")):
       print('Error.')
       msg = qt.QMessageBox()
       if not(os.path.isdir(self.outputFolder)):
@@ -541,7 +640,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         self.ui.outputLineEdit.setText('')
         print(f'output folder : {self.outputFolder}')
 
-      elif not(os.path.isfile(self.model)):
+      elif (not(os.path.isfile(self.model)) and self.model!="latest"):
         msg.setText("Model : \nIncorrect path.")
         print('Error: Incorrect path for model.')
         self.ui.modelLineEdit.setText('')
@@ -577,50 +676,265 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       return
 
     else:
-      # Ready to start cli module
-      ready = True 
-      system = platform.system()
-      if system == "Windows" :
-          wsl = self.is_ubuntu_installed()
-          if wsl :
-            ready = True
-          else :
-            messageBox = qt.QMessageBox()
-            text = "Code can't be launch. \nWSL is not installed, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
-            ready = False
-            messageBox.information(None, "Information", text)
+        # create input parameters
+        input_vtk = "None"
+        input_stl = "None"
+        input_csv = "None"
+        vtk_folder = "None"
+        if os.path.isfile(self.input):
+            extension = os.path.splitext(self.input)[1]
+            if extension == ".vtk":
+              input_vtk = self.input
+            elif extension == ".stl" :
+              input_stl = self.input
               
-      if ready :
-        self.ui.applyChangesButton.setEnabled(False)
-        self.ui.progressBar.setEnabled(True)
-        if self.inputChoice is InputChoice.MRML_NODE: # MRML node
-          filename = self.writeVTKFromNode()
-          self.logic = CrownSegmentationLogic(filename,
-                                              self.output,
-                                              self.resolution, 
-                                              self.rotation,
+        elif os.path.isdir(self.input):
+          input_csv = self.create_csv()
+          vtk_folder = self.input
+
+        self.ui.timeLabel.setHidden(False)
+        if platform.system() != "Windows" : #if linux system
+            env_ok = func_import(False)
+            if not env_ok : 
+              userResponse = slicer.util.confirmYesNoDisplay("Some required libraries are not install in Slicer, do you want ot install them ?\n This step can take few  minutes", windowTitle="Env doesn't exist")
+              if userResponse : 
+                self.parall_process(func_import,[True],"Installation of the required packages in Slicer")
+                env_ok = True
+                # env_ok=func_import(True)
+            if env_ok : 
+              path_dentalmodelseg = "/home/luciacev/APP/Slicer-5.6.1-linux-amd64/lib/Python/bin/dentalmodelseg"
+              print(f"CE PATH {path_dentalmodelseg} EST UN FICHIER ?  : {Path(path_dentalmodelseg).is_file()}")
+              print("OUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
+              # CLI IS NOT WORKING, EVERYTHING IS RUNNING IN THIS FILE (can't call CondaSetUp from cli)
+              self.logic = CrownSegmentationLogic(input_vtk,
+                                              input_stl,
+                                              input_csv, 
+                                              self.ui.outputLineEdit.text,
+                                              self.ui.checkBoxOverwrite.checked, 
                                               self.model, 
+                                              self.ui.sepOutputsCheckbox.isChecked(),
                                               self.predictedId,
-                                              self.ui.sepOutputsCheckbox.isChecked(),
                                               self.chooseFDI,
-                                              self.log_path)
+                                              self.ui.outputFileLineEdit.text,
+                                              vtk_folder)
 
-        else: # input folder/file
-          self.logic = CrownSegmentationLogic(self.input,
-                                              self.output,
-                                              self.resolution, 
-                                              self.rotation,
-                                              self.model, 
-                                              self.predictedId, 
-                                              self.ui.sepOutputsCheckbox.isChecked(),
-                                              self.chooseFDI,
-                                              self.log_path)
 
-        
-        self.logic.process()
-        #self.processObserver = self.logic.cliNode.AddObserver('ModifiedEvent',self.onProcessUpdate)
-        self.addObserver(self.logic.cliNode,vtk.vtkCommand.ModifiedEvent,self.onProcessUpdate)
-        self.onProcessStarted()
+              
+              self.logic.process()
+              self.addObserver(self.logic.cliNode,vtk.vtkCommand.ModifiedEvent,self.onProcessUpdate)
+              self.onProcessStarted()
+              file_path = os.path.abspath(__file__)
+              folder_path = os.path.dirname(file_path)
+              # csv_file = os.path.join(folder_path,"list_file.csv")
+              # if os.path.exists(csv_file):
+              #   os.remove(csv_file)
+        else : # if windows system
+            self.conda_wsl = CondaSetUpCallWsl()  
+            wsl = self.conda_wsl.testWslAvailable()
+            ready = True
+            self.ui.timeLabel.setHidden(False)
+            self.ui.timeLabel.setText(f"Checking if wsl is installed, this task may take a moments")
+            slicer.app.processEvents()
+            if wsl : # if wsl is install
+              lib = self.check_lib_wsl()
+              if not lib : # if lib required are not install
+                  self.ui.timeLabel.setText(f"Checking if the required librairies are installed, this task may take a moments")
+                  messageBox = qt.QMessageBox()
+                  text = "Code can't be launch. \nWSL doen't have all the necessary libraries, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
+                  ready = False
+                  messageBox.information(None, "Information", text)
+            else :
+              messageBox = qt.QMessageBox()
+              text = "Code can't be launch. \nWSL is not installed, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
+              ready = False
+              messageBox.information(None, "Information", text)
+            
+            if ready :
+              self.ui.timeLabel.setText(f"Checking if miniconda is installed")
+              if "Error" in self.conda_wsl.condaRunCommand([self.conda_wsl.getCondaExecutable(),"--version"]): # if conda is setup
+                    messageBox = qt.QMessageBox()
+                    text = "Code can't be launch. \nConda is not setup in WSL. Please go the extension CondaSetUp in SlicerConda to do it."
+                    ready = False
+                    messageBox.information(None, "Information", text)
+            
+            if ready :
+              self.ui.timeLabel.setText(f"Checking if environnement exist")
+              if not self.conda_wsl.condaTestEnv('shapeaxi') : # check is environnement exist, if not ask user the permission to do it
+                userResponse = slicer.util.confirmYesNoDisplay("The environnement to run the segmentation doesn't exist, do you want to create it ? ", windowTitle="Env doesn't exist")
+                if userResponse :
+                  start_time = time.time()
+                  previous_time = start_time
+                  self.ui.timeLabel.setText(f"Creation of the new environment. This task may take a few minutes.\ntime: 0.0s")
+                  name_env = "shapeaxi"
+                  process = threading.Thread(target=self.conda_wsl.condaCreateEnv, args=(name_env,"3.9",["shapeaxi"],)) #run in paralle to not block slicer
+                  process.start()
+                  
+                  while process.is_alive():
+                    slicer.app.processEvents()
+                    current_time = time.time()
+                    gap=current_time-previous_time
+                    if gap>0.3:
+                        previous_time = current_time
+                        elapsed_time = current_time - start_time
+                        self.ui.timeLabel.setText(f"Creation of the new environment. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
+              
+                  start_time = time.time()
+                  previous_time = start_time
+                  self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: 0.0s")
+                  name_env = "shapeaxi"
+                  file_path = os.path.realpath(__file__)
+                  folder = os.path.dirname(file_path)
+                  utils_folder = os.path.join(folder, "utils")
+                  utils_folder_norm = os.path.normpath(utils_folder)
+                  install_path = self.windows_to_linux_path(os.path.join(utils_folder_norm, 'install_pytorch.py'))
+                  path_pip = self.conda_wsl.getCondaPath()+"/envs/shapeaxi/bin/pip"
+                  process = threading.Thread(target=self.conda_wsl.condaRunFilePython, args=(install_path,name_env,[path_pip],)) # launch install_pythorch.py with the environnement ali_ios to install pytorch3d on it
+                  process.start()
+                  
+                  while process.is_alive():
+                    slicer.app.processEvents()
+                    current_time = time.time()
+                    gap=current_time-previous_time
+                    if gap>0.3:
+                        previous_time = current_time
+                        elapsed_time = current_time - start_time
+                        self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
+                        # msg_box.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
+                  # msg_box.close()
+                else :
+                    ready = False
+            print("on y croit peut etre ca va se lancer")
+                    
+            if ready : # if everything is ready launch dentalmodelseg on the environnement shapeaxi in wsl
+              model = self.model
+              if self.model == "latest":
+                model = None
+              else :
+                model = self.windows_to_linux_path(model)
+
+              command = [f'dentalmodelseg --vtk \"{self.windows_to_linux_path(input_vtk)}\" --stl \"{self.windows_to_linux_path(input_stl)}\" --csv \"{self.windows_to_linux_path(input_csv)}\" --out \"{self.windows_to_linux_path(self.ui.outputLineEdit.text)}\" --overwrite \"{self.ui.checkBoxOverwrite.checked}\" --model \"{model}\" --crown_segmentation \"{self.ui.sepOutputsCheckbox.isChecked()}\" --array_name \"{self.predictedId}\" --fdi \"{self.chooseFDI}\" --suffix \"{self.ui.outputFileLineEdit.text}\" --vtk_folder \"{self.windows_to_linux_path(vtk_folder)}\"']
+              print("command : ",command)
+              name_env = "shapeaxi"
+              process = threading.Thread(target=self.conda_wsl.condaRunCommand, args=(command, "shapeaxi"))
+              process.start()
+              self.ui.applyChangesButton.setEnabled(False)
+              self.ui.doneLabel.setHidden(True)
+              self.ui.timeLabel.setHidden(False)
+              self.ui.progressLabel.setHidden(False)
+              self.ui.timeLabel.setText(f"time : 0.00s")
+              start_time = time.time()
+              previous_time = start_time
+              while process.is_alive():
+                  slicer.app.processEvents()
+                  current_time = time.time()
+                  gap=current_time-previous_time
+                  if gap>0.3:
+                      previous_time = current_time
+                      elapsed_time = current_time - start_time
+                      self.ui.timeLabel.setText(f"time : {elapsed_time:.2f}s")
+
+              print("self.output : ",self.output)
+              self.ui.progressLabel.setHidden(True)
+              self.ui.doneLabel.setHidden(False)
+              self.ui.applyChangesButton.setEnabled(True)
+
+              file_path = os.path.abspath(__file__)
+              folder_path = os.path.dirname(file_path)
+              csv_file = os.path.join(folder_path,"list_file.csv")
+              if os.path.exists(csv_file):
+                os.remove(csv_file)
+
+              # CLI IS NOT WORKING, EVERYTHING IS RUNNING IN THIS FILE (can't call CondaSetUp from cli)
+              # self.logic = CrownSegmentationLogic(input_vtk,
+              #                                 input_stl,
+              #                                 input_csv, 
+              #                                 self.ui.outputLineEdit.text,
+              #                                 self.ui.checkBoxOverwrite.checked, 
+              #                                 self.model, 
+              #                                 self.ui.sepOutputsCheckbox.isChecked(),
+              #                                 self.predictedId,
+              #                                 self.chooseFDI,
+              #                                 self.ui.outputFileLineEdit.text,
+              #                                 vtk_folder)
+
+
+              
+              # self.logic.process()
+              # self.addObserver(self.logic.cliNode,vtk.vtkCommand.ModifiedEvent,self.onProcessUpdate)
+              # self.onProcessStarted()
+    self.ui.applyChangesButton.setEnabled(True)
+    
+  def parall_process(self,function,arguments=[],message=""):
+        process = threading.Thread(target=function, args=tuple(arguments)) #run in paralle to not block slicer
+        process.start()
+        start_time = time.time()
+        previous_time = time.time()
+        while process.is_alive():
+          slicer.app.processEvents()
+          current_time = time.time()
+          gap=current_time-previous_time
+          if gap>0.3:
+              previous_time = current_time
+              elapsed_time = current_time - start_time
+              self.ui.timeLabel.setText(f"{message}\ntime: {elapsed_time:.1f}s")
+          
+  def windows_to_linux_path(self,windows_path):
+      '''
+      Convert a windows path to a wsl path
+      '''
+      windows_path = windows_path.strip()
+
+      path = windows_path.replace('\\', '/')
+
+      if ':' in path:
+          drive, path_without_drive = path.split(':', 1)
+          path = "/mnt/" + drive.lower() + path_without_drive
+
+      return path
+              
+  def check_lib_wsl(self)->bool:
+      '''
+      Check if wsl contains the require librairies
+      '''
+      result1 = subprocess.run("wsl -- bash -c \"dpkg -l | grep libxrender1\"", capture_output=True, text=True)
+      output1 = result1.stdout.encode('utf-16-le').decode('utf-8')
+      clean_output1 = output1.replace('\x00', '')
+
+      result2 = subprocess.run("wsl -- bash -c \"dpkg -l | grep libgl1-mesa-glx\"", capture_output=True, text=True)
+      output2 = result2.stdout.encode('utf-16-le').decode('utf-8')
+      clean_output2 = output2.replace('\x00', '')
+
+      return "libxrender1" in clean_output1 and "libgl1-mesa-glx" in clean_output2
+
+
+
+  def create_csv(self):
+    '''
+    create a csv with the complete path of the files in the folder
+    '''
+    file_path = os.path.abspath(__file__)
+    folder_path = os.path.dirname(file_path)
+    csv_file = os.path.join(folder_path,"list_file.csv")
+    with open(csv_file, 'w', newline='') as fichier:
+        writer = csv.writer(fichier)
+        # Écrire l'en-tête du CSV
+        writer.writerow(["surf"])
+
+        # Parcourir le dossier et ses sous-dossiers
+        for root, dirs, files in os.walk(self.input):
+            for file in files:
+                if file.endswith(".vtk") or file.endswith(".stl"):
+                    # Écrire le chemin complet du fichier dans le CSV
+                    if platform.system() != "Windows" :    
+                      writer.writerow([os.path.join(root, file)])
+                    else :
+                      file_path = os.path.join(root, file)
+                      norm_file_path = os.path.normpath(file_path)
+                      writer.writerow([self.windows_to_linux_path(norm_file_path)])
+
+
+    return csv_file
+
 
   def is_ubuntu_installed(self)->bool:
       '''
@@ -632,45 +946,42 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
       return 'Ubuntu' in clean_output
 
-  def onProcessStarted(self):    
-    self.currentPredDict["rotation"] = self.rotation
-    self.currentPredDict["PredictedID"] = self.predictedId
-    self.currentPredDict["output"] = self.output
+  def onProcessStarted(self):
+    self.start_time = time.time()
+    self.previous_time = self.start_time  
+    
+    self.ui.applyChangesButton.setEnabled(False)
     self.ui.doneLabel.setHidden(True)
-    self.ui.openOutSurfButton.setHidden(True)
-    self.ui.cancelButton.setHidden(False)
-    self.ui.cancelButton.setEnabled(True)
-    self.ui.resetButton.setEnabled(False)
-    if os.path.isdir(self.input):
-      self.nbFiles = len(glob.glob(f"{self.input}/*.vtk"))
-    else:
-      self.nbFiles = 1
-    self.ui.progressBar.setValue(0)
-    self.progress = 0
-    self.ui.progressBar.setEnabled(True)
-    self.ui.progressBar.setHidden(False)
-    self.ui.progressBar.setTextVisible(True)
+    self.ui.timeLabel.setHidden(False)
     self.ui.progressLabel.setHidden(False)
-
-    qt.QSettings().setValue("TeethSeg_ModelPath",self.model)
-    qt.QSettings().setValue("TeethSegVisited",1)
+    self.ui.timeLabel.setText(f"time : 0.00s") 
+     
 
 
 
   def onProcessUpdate(self,caller,event):
     # check log file
-    if os.path.isfile(self.log_path):
-      time = os.path.getmtime(self.log_path)
-      if time != self.time_log:
-        # if progress was made
-        self.time_log = time
-        self.progress += 1
-        progressbar_value = (self.progress -1) /self.nbFiles * 100
-        #print(f'progressbar value {progressbar_value}')
-        if progressbar_value < 100 :
-          self.ui.progressBar.setValue(progressbar_value)
-        else:
-          self.ui.progressBar.setValue(99)
+    current_time = time.time()
+    gap = current_time - self.previous_time
+    if gap > 0.3:
+        self.previous_time = current_time
+        elapsed_time = current_time - self.start_time
+        # Mettez à jour le label avec le temps écoulé
+        self.ui.timeLabel.setText(f"Segmentation in process\ntime : {elapsed_time:.2f}s")
+    
+    # if os.path.isfile(self.log_path):
+    #   time = os.path.getmtime(self.log_path)
+    #   if time != self.time_log:
+    #     # if progress was made
+    #     self.time_log = time
+    #     self.progress += 1
+    #     progressbar_value = (self.progress -1) /self.nbFiles * 100
+    #     #print(f'progressbar value {progressbar_value}')
+    #     if progressbar_value < 100 :
+    #       self.ui.progressBar.setValue(progressbar_value)
+    #     else:
+    #       self.ui.progressBar.setValue(99)
+
 
     if self.logic.cliNode.GetStatus() & self.logic.cliNode.Completed:
       # process complete
@@ -691,15 +1002,25 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         msg.setWindowTitle("Error")
         msg.exec_()
 
-      else:
-        # success
-        print('PROCESS DONE.')
-        print(self.logic.cliNode.GetOutputText())
-        self.ui.doneLabel.setHidden(False)
-        if os.path.isdir(self.output):
-          self.ui.openOutFolderButton.setHidden(False)
-        elif os.path.isfile(self.output):
-          self.ui.openOutSurfButton.setHidden(False) 
+    else:
+      # success
+      print('PROCESS DONE.')
+
+      self.ui.progressLabel.setHidden(True)
+      self.ui.doneLabel.setHidden(False)
+      self.ui.applyChangesButton.setEnabled(True)
+      print("Process completed successfully.")
+
+      # Récupérer la sortie standard et l'erreur
+      # stdout = self.logic.cliNode.GetOutputText()
+      # stderr = self.logic.cliNode.GetErrorText()
+
+      # print("Output:\n", stdout)
+      # if stderr:
+      #     print("Errors:\n", stderr)
+        
+      print("*"*25,"Output cli","*"*25)
+      print(self.logic.cliNode.GetOutputText())
         
   def onReset(self):
     self.ui.outputLineEdit.setText("")
@@ -736,50 +1057,62 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
   """
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+      parser = argparse.ArgumentParser()
+    parser.add_argument('input_vtk',type=str)
+    parser.add_argument('input_stl',type=str)
+    parser.add_argument('input_csv',type = int)
+    parser.add_argument('out',type=int)
+    parser.add_argument('overwrite',type=str)
+    parser.add_argument('model',type=str)
+    parser.add_argument('crown_segmentation',type=int)
+    parser.add_argument('array_name',type=int)
+    parser.add_argument('fdi',type=str)
+    parser.add_argument('suffix',type=str)
+    parser.add_argument('vtk_folder',type=str)
+
   """
 
-  def __init__(self, input_ = None,output=None, resolution=None, rotation=None,model=None,predictedId=None,sepOutputs=None,chooseFDI=None,logPath=None):
+  def __init__(self, input_vtk = "None",input_stl = "None", input_csv = "None",out="None",overwrite="None",model="None",crown_segmentation="None",array_name="None",fdi="None",suffix="False",vtk_folder="None"):
     """
     Called when the logic class is instantiated. Can be used for initializing member variables.
     """
     ScriptedLoadableModuleLogic.__init__(self)
-    self.input = input_
-    self.output = output
-    self.resolution = resolution
-    self.rotation = rotation
+    self.input_vtk = input_vtk
+    self.input_stl = input_stl
+    self.input_csv = input_csv
+    self.out = out
+    self.overwrite = overwrite
     self.model = model
-    self.predictedId = predictedId
-    self.sepOutputs = sepOutputs
-    self.chooseFDI = chooseFDI
-    self.logPath = logPath
-    self.nbOperation = 0
-    self.progress = 0
-    self.cliNode = None
-    self.installCliNode = None
-    """
-    print(f"model: {self.model}")
-    print(f'input : {self.input}')
-    print(f'outptutfile : {self.output}')
-    print(f'resolution : {self.resolution}')
-    print(f'rotation : {self.rotation}')
-    print(f'predictedId : {self.predictedId}')
-    """
+    self.crown_segmentation = crown_segmentation
+    self.array_name = array_name
+    self.fdi = fdi
+    self.suffix = suffix
+    self.vtk_folder = vtk_folder
+  
+
 
 
 
   def process(self):
     parameters = {}
-    parameters ["input"] = self.input
-    parameters ["output"] = self.output
-    parameters ["subdivision_level"] = self.rotation
-    parameters ['resolution'] = self.resolution
+    parameters ["input_vtk"] =self.input_vtk
+    parameters ["input_stl"] =self.input_stl
+    parameters ["input_csv"] =self.input_csv
+    parameters ["out"] = self.out
+    parameters ['overwrite'] = str(self.overwrite)
     parameters ['model'] = self.model
-    parameters ['predictedId'] = self.predictedId
-    parameters ['sepOutputs'] = int(self.sepOutputs)
-    parameters ['chooseFDI'] = int(self.chooseFDI)
-    parameters ['logPath'] = self.logPath
+    parameters ['crown_segmentation'] = str(self.crown_segmentation)
+    parameters ['array_name'] = str(self.array_name)
+    parameters ['fdi'] = str(self.fdi)
+    # parameters ['overwrite'] = str(self.overwrite)
+    # parameters ['name_env'] = "shapeAxi"
+    parameters ['suffix'] = self.suffix
+    parameters ['vtk_folder'] = self.vtk_folder
     print ('parameters : ', parameters)
     flybyProcess = slicer.modules.crownsegmentationcli
     self.cliNode = slicer.cli.run(flybyProcess,None, parameters)    
     return flybyProcess
 
+class DummyFile(io.IOBase):
+        def close(self):
+            pass

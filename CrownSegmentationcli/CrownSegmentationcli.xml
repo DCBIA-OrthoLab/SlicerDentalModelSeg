@@ -16,69 +16,83 @@
     <label>IO</label>
     <description><![CDATA[Input/output parameters]]></description>
 
-    <string>
-      <name>input</name>
-      <label>input</label>
+    <string> 
+      <name>input_vtk</name>
+      <label>input_vtk</label>
       <index>0</index>
-      <description>Path for the surface file.</description>
+      <description>Path for the surface file with .vtk for extension.</description>
     </string>
 
     <string>
-      <name>output</name>
-      <label>output</label>
+      <name>input_stl</name>
+      <label>input_stl</label>
       <index>1</index>
-      <description>Path for output file.</description>
+      <description>Path for the surface file with .stl for extension.</description>
     </string>
 
-    <integer>
-      <name>subdivision_level</name>
-      <label>subdivision_level</label>
+    <string>
+      <name>input_csv</name>
+      <label>input_csv</label>
       <index>2</index>
-      <description>Number of rotations</description>
-    </integer>
+      <description>Path for the csv file (when the input is a folder)</description>
+    </string>
 
-    <integer>
-      <name>resolution</name>
-      <label>resolution</label>
+    <string>
+      <name>out</name>
+      <label>out</label>
       <index>3</index>
-      <description>Resolution of the images</description>
-    </integer>
+      <description>Output path</description>
+    </string>
+
+    <string>
+      <name>overwrite</name>
+      <label>overwrite</label>
+      <index>4</index>
+      <description>if we overwrite or not</description>
+    </string>
 
     <string>
       <name>model</name>
       <label>model</label>
-      <index>4</index>
-      <description>Model used for segmentation</description>
-    </string>
-
-    <string>
-      <name>predictedId</name>
-      <label>predictedId</label>
       <index>5</index>
-      <description>Name of the new scalar.</description>
+      <description>Path to the model or 'latest'</description>
     </string>
 
 
-    <integer>
-      <name>sepOutputs</name>
-      <label>sepOutputs</label>
+    <string>
+      <name>crown_segmentation</name>
+      <label>crown_segmentation</label>
       <index>6</index>
-      <description>Multiple output files.</description>
-    </integer>
+      <description>crown_segmentation.</description>
+    </string>
 
-    <integer>
-      <name>chooseFDI</name>
-      <label>chooseFDI</label>
+    <string>
+      <name>array_name</name>
+      <label>array_name</label>
       <index>7</index>
-      <description>Numbering system</description>
-    </integer>
+      <description>name of teh predicted label</description>
+    </string>
 
 
     <string>
-      <name>logPath</name>
-      <label>logPath</label>
+      <name>fdi</name>
+      <label>fdi</label>
       <index>8</index>
-      <description>Path to write log to</description>
+      <description>Numbering system</description>
+    </string>
+
+    <string>
+      <name>suffix</name>
+      <label>suffix</label>
+      <index>9</index>
+      <description>suffix to add at the end of the new file</description>
+    </string>
+
+    <string>
+      <name>vtk_folder</name>
+      <label>vtk_folder</label>
+      <index>10</index>
+      <description>folder where the intput vtk are located</description>
     </string>
 
   </parameters>
