@@ -7,7 +7,7 @@ import os
 import argparse
 import platform
 import subprocess
-
+import slicer
 from pathlib import Path
 
 
@@ -19,25 +19,32 @@ from pathlib import Path
 
 def main(args):
     print('start crown segmentation cli')
-    model = args.model
-    if args.model == "latest":
-      model = None
-    else :
-      if platform.system()=="Linux":
-        model=model
-      else :
-        model = windows_to_linux_path(model)
     
     if platform.system()=="Linux":
       print("bonjour")
       print("_"*25,"TEST_1","_"*25)
-      command = [f'dentalmodelseg --vtk \"{args.input_vtk}\" --stl \"{args.input_stl}\" --csv \"{args.input_csv}\" --out \"{args.out}\" --overwrite \"{args.overwrite}\" --model \"{model}\" --crown_segmentation \"{args.crown_segmentation}\" --array_name \"{args.array_name}\" --fdi \"{args.fdi}\" --suffix \"{args.suffix}\" --vtk_folder \"{args.vtk_folder}\"']
       
-      path_dentalmodelseg = "/home/luciacev/APP/Slicer-5.6.1-linux-amd64/lib/Python/lib/python3.9/site-packages/shapeaxi/dental_model_seg.py"
-      # print(f"CE PATH {path_dentalmodelseg} EST UN FICHIER ?  : {Path(path_dentalmodelseg).is_file()}")
-      command = [f'{path_dentalmodelseg} --csv {args.input_csv} --out {args.out} --overwrite {0} --model {model} --crown_segmentation {0} --array_name {args.array_name} --fdi {args.fdi} --suffix {args.suffix} --vtk_folder {args.vtk_folder}']
-      # command = [dentalmodelseg --vtk args.input_vtk --stl args.input_stl --csv args.input_csv --out args.out --overwrite args.overwrite --model model --crown_segmentation args.crown_segmentation --array_name args.array_name --fdi args.fdi --suffix args.suffix --vtk_folder args.vtk_folder]
+      command = [args.dentalmodelseg_path, "--out",args.out, "--overwrite", args.overwrite, "--crown_segmentation", args.crown_segmentation, "--array_name", args.array_name, "--fdi", args.fdi, "--suffix", args.suffix]
       print("command : ",command)
+      if args.surf != "None":
+            command.append("--surf")
+            command.append(args.surf)
+      if args.input_csv != "None":
+            command.append("--csv")
+            command.append(args.input_csv)
+      if args.model!="latest":
+            command.append("--model")
+            command.append(args.model)
+      if args.vtk_folder!="None":
+            command.append("--vtk_folder")
+            command.append(args.vtk_folder)
+            
+      print("command : ",command)
+      
+            
+      
+      
+     
       result = subprocess.run(command,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
       print("Output : ",result.stdout)
       print("Error : ",result.stderr)
@@ -53,6 +60,7 @@ def main(args):
     elif platform.system()=="Windows":
       print("*"*150)
       command = [f'dentalmodelseg --vtk \"{windows_to_linux_path(args.input_vtk)}\" --stl \"{windows_to_linux_path(args.input_stl)}\" --csv \"{windows_to_linux_path(args.input_csv)}\" --out \"{windows_to_linux_path(args.out)}\" --overwrite \"{args.overwrite}\" --model \"{model}\" --crown_segmentation \"{args.crown_segmentation}\" --array_name \"{args.array_name}\" --fdi \"{args.fdi}\" --suffix \"{args.suffix}\" --vtk_folder \"{windows_to_linux_path(args.vtk_folder)}\"']
+      
       subprocess.run(command)
 
 
@@ -77,8 +85,7 @@ def windows_to_linux_path(windows_path):
 if __name__ == '__main__':
     print("Starting crownsegmentation cli")
     parser = argparse.ArgumentParser()
-    parser.add_argument('input_vtk',type=str)
-    parser.add_argument('input_stl',type=str)
+    parser.add_argument('surf',type=str)
     parser.add_argument('input_csv',type = str)
     parser.add_argument('out',type=str)
     parser.add_argument('overwrite',type=str)
@@ -88,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('fdi',type=str)
     parser.add_argument('suffix',type=str)
     parser.add_argument('vtk_folder',type=str)
+    parser.add_argument('dentalmodelseg_path',type=str)
     args = parser.parse_args()
     print("args : ",args)
     main(args)

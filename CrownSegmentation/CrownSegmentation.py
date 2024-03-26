@@ -677,16 +677,13 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
     else:
         # create input parameters
-        input_vtk = "None"
-        input_stl = "None"
+        surf = "None"
         input_csv = "None"
         vtk_folder = "None"
         if os.path.isfile(self.input):
             extension = os.path.splitext(self.input)[1]
-            if extension == ".vtk":
-              input_vtk = self.input
-            elif extension == ".stl" :
-              input_stl = self.input
+            if extension == ".vtk" or extension == ".stl":
+              surf = self.input
               
         elif os.path.isdir(self.input):
           input_csv = self.create_csv()
@@ -702,21 +699,24 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                 env_ok = True
                 # env_ok=func_import(True)
             if env_ok : 
-              path_dentalmodelseg = "/home/luciacev/APP/Slicer-5.6.1-linux-amd64/lib/Python/bin/dentalmodelseg"
-              print(f"CE PATH {path_dentalmodelseg} EST UN FICHIER ?  : {Path(path_dentalmodelseg).is_file()}")
+              # path_dentalmodelseg = "/home/luciacev/APP/Slicer-5.6.1-linux-amd64/lib/Python/bin/dentalmodelseg"
+              # print(f"CE PATH {path_dentalmodelseg} EST UN FICHIER ?  : {Path(path_dentalmodelseg).is_file()}")
               print("OUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
               # CLI IS NOT WORKING, EVERYTHING IS RUNNING IN THIS FILE (can't call CondaSetUp from cli)
-              self.logic = CrownSegmentationLogic(input_vtk,
-                                              input_stl,
+              slicer_path = slicer.app.applicationDirPath()
+              dentalmodelseg_path = os.path.join(slicer_path,"..","lib","Python","bin","dentalmodelseg")
+              print("dentalmodelseg_path : ",dentalmodelseg_path)
+              self.logic = CrownSegmentationLogic(surf,
                                               input_csv, 
                                               self.ui.outputLineEdit.text,
-                                              self.ui.checkBoxOverwrite.checked, 
+                                              "1" if self.ui.checkBoxOverwrite.checked else "0", 
                                               self.model, 
-                                              self.ui.sepOutputsCheckbox.isChecked(),
+                                              "1" if self.ui.sepOutputsCheckbox.isChecked() else "0",
                                               self.predictedId,
                                               self.chooseFDI,
                                               self.ui.outputFileLineEdit.text,
-                                              vtk_folder)
+                                              vtk_folder,
+                                              dentalmodelseg_path)
 
 
               
@@ -1002,25 +1002,26 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         msg.setWindowTitle("Error")
         msg.exec_()
 
-    else:
-      # success
-      print('PROCESS DONE.')
+      else:
+        # success
+        print('PROCESS DONE.')
 
-      self.ui.progressLabel.setHidden(True)
-      self.ui.doneLabel.setHidden(False)
-      self.ui.applyChangesButton.setEnabled(True)
-      print("Process completed successfully.")
+        self.ui.progressLabel.setHidden(True)
+        self.ui.doneLabel.setHidden(False)
+        self.ui.applyChangesButton.setEnabled(True)
+        print("Process completed successfully.")
+        self.ui.timeLabel.setText(f"time : {elapsed_time:.2f}s")
 
-      # Récupérer la sortie standard et l'erreur
-      # stdout = self.logic.cliNode.GetOutputText()
-      # stderr = self.logic.cliNode.GetErrorText()
+        # Récupérer la sortie standard et l'erreur
+        # stdout = self.logic.cliNode.GetOutputText()
+        # stderr = self.logic.cliNode.GetErrorText()
 
-      # print("Output:\n", stdout)
-      # if stderr:
-      #     print("Errors:\n", stderr)
-        
-      print("*"*25,"Output cli","*"*25)
-      print(self.logic.cliNode.GetOutputText())
+        # print("Output:\n", stdout)
+        # if stderr:
+        #     print("Errors:\n", stderr)
+          
+        print("*"*25,"Output cli","*"*25)
+        print(self.logic.cliNode.GetOutputText())
         
   def onReset(self):
     self.ui.outputLineEdit.setText("")
@@ -1072,13 +1073,12 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
 
   """
 
-  def __init__(self, input_vtk = "None",input_stl = "None", input_csv = "None",out="None",overwrite="None",model="None",crown_segmentation="None",array_name="None",fdi="None",suffix="False",vtk_folder="None"):
+  def __init__(self, surf = "None", input_csv = "None",out="None",overwrite="None",model="None",crown_segmentation="None",array_name="None",fdi="None",suffix="False",vtk_folder="None",dentalmodelseg_path="None"):
     """
     Called when the logic class is instantiated. Can be used for initializing member variables.
     """
     ScriptedLoadableModuleLogic.__init__(self)
-    self.input_vtk = input_vtk
-    self.input_stl = input_stl
+    self.surf = surf
     self.input_csv = input_csv
     self.out = out
     self.overwrite = overwrite
@@ -1088,6 +1088,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     self.fdi = fdi
     self.suffix = suffix
     self.vtk_folder = vtk_folder
+    self.dentalmodelseg_path = dentalmodelseg_path
   
 
 
@@ -1095,8 +1096,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
 
   def process(self):
     parameters = {}
-    parameters ["input_vtk"] =self.input_vtk
-    parameters ["input_stl"] =self.input_stl
+    parameters ["surf"] =self.surf
     parameters ["input_csv"] =self.input_csv
     parameters ["out"] = self.out
     parameters ['overwrite'] = str(self.overwrite)
@@ -1108,6 +1108,7 @@ class CrownSegmentationLogic(ScriptedLoadableModuleLogic):
     # parameters ['name_env'] = "shapeAxi"
     parameters ['suffix'] = self.suffix
     parameters ['vtk_folder'] = self.vtk_folder
+    parameters ['dentalmodelseg_path'] = self.dentalmodelseg_path
     print ('parameters : ', parameters)
     flybyProcess = slicer.modules.crownsegmentationcli
     self.cliNode = slicer.cli.run(flybyProcess,None, parameters)    

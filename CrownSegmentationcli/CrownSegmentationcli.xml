@@ -17,44 +17,38 @@
     <description><![CDATA[Input/output parameters]]></description>
 
     <string> 
-      <name>input_vtk</name>
-      <label>input_vtk</label>
+      <name>surf</name>
+      <label>surf</label>
       <index>0</index>
-      <description>Path for the surface file with .vtk for extension.</description>
+      <description>Path for the surface file with .vtk or .stl for extension.</description>
     </string>
 
-    <string>
-      <name>input_stl</name>
-      <label>input_stl</label>
-      <index>1</index>
-      <description>Path for the surface file with .stl for extension.</description>
-    </string>
 
     <string>
       <name>input_csv</name>
       <label>input_csv</label>
-      <index>2</index>
+      <index>1</index>
       <description>Path for the csv file (when the input is a folder)</description>
     </string>
 
     <string>
       <name>out</name>
       <label>out</label>
-      <index>3</index>
+      <index>2</index>
       <description>Output path</description>
     </string>
 
     <string>
       <name>overwrite</name>
       <label>overwrite</label>
-      <index>4</index>
+      <index>3</index>
       <description>if we overwrite or not</description>
     </string>
 
     <string>
       <name>model</name>
       <label>model</label>
-      <index>5</index>
+      <index>4</index>
       <description>Path to the model or 'latest'</description>
     </string>
 
@@ -62,14 +56,14 @@
     <string>
       <name>crown_segmentation</name>
       <label>crown_segmentation</label>
-      <index>6</index>
+      <index>5</index>
       <description>crown_segmentation.</description>
     </string>
 
     <string>
       <name>array_name</name>
       <label>array_name</label>
-      <index>7</index>
+      <index>6</index>
       <description>name of teh predicted label</description>
     </string>
 
@@ -77,22 +71,29 @@
     <string>
       <name>fdi</name>
       <label>fdi</label>
-      <index>8</index>
+      <index>7</index>
       <description>Numbering system</description>
     </string>
 
     <string>
       <name>suffix</name>
       <label>suffix</label>
-      <index>9</index>
+      <index>8</index>
       <description>suffix to add at the end of the new file</description>
     </string>
 
     <string>
       <name>vtk_folder</name>
       <label>vtk_folder</label>
-      <index>10</index>
+      <index>9</index>
       <description>folder where the intput vtk are located</description>
+    </string>
+
+    <string>
+      <name>dentalmodelseg_path</name>
+      <label>dentalmodelseg_path</label>
+      <index>10</index>
+      <description>path to dentalmodelseg</description>
     </string>
 
   </parameters>
