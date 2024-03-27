@@ -693,16 +693,12 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         if platform.system() != "Windows" : #if linux system
             env_ok = func_import(False)
             if not env_ok : 
-              userResponse = slicer.util.confirmYesNoDisplay("Some required libraries are not install in Slicer, do you want ot install them ?\n This step can take few  minutes", windowTitle="Env doesn't exist")
+              userResponse = slicer.util.confirmYesNoDisplay("Some of the required libraries are not installed in Slicer. Would you like to install them?\nThis may take a few minutes.", windowTitle="Env doesn't exist")
               if userResponse : 
-                self.parall_process(func_import,[True],"Installation of the required packages in Slicer")
+                self.parall_process(func_import,[True],"Installing the required packages in Slicer")
                 env_ok = True
                 # env_ok=func_import(True)
             if env_ok : 
-              # path_dentalmodelseg = "/home/luciacev/APP/Slicer-5.6.1-linux-amd64/lib/Python/bin/dentalmodelseg"
-              # print(f"CE PATH {path_dentalmodelseg} EST UN FICHIER ?  : {Path(path_dentalmodelseg).is_file()}")
-              print("OUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
-              # CLI IS NOT WORKING, EVERYTHING IS RUNNING IN THIS FILE (can't call CondaSetUp from cli)
               slicer_path = slicer.app.applicationDirPath()
               dentalmodelseg_path = os.path.join(slicer_path,"..","lib","Python","bin","dentalmodelseg")
               print("dentalmodelseg_path : ",dentalmodelseg_path)
@@ -725,9 +721,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               self.onProcessStarted()
               file_path = os.path.abspath(__file__)
               folder_path = os.path.dirname(file_path)
-              # csv_file = os.path.join(folder_path,"list_file.csv")
-              # if os.path.exists(csv_file):
-              #   os.remove(csv_file)
+              
         else : # if windows system
             self.conda_wsl = CondaSetUpCallWsl()  
             wsl = self.conda_wsl.testWslAvailable()
@@ -844,24 +838,6 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               if os.path.exists(csv_file):
                 os.remove(csv_file)
 
-              # CLI IS NOT WORKING, EVERYTHING IS RUNNING IN THIS FILE (can't call CondaSetUp from cli)
-              # self.logic = CrownSegmentationLogic(input_vtk,
-              #                                 input_stl,
-              #                                 input_csv, 
-              #                                 self.ui.outputLineEdit.text,
-              #                                 self.ui.checkBoxOverwrite.checked, 
-              #                                 self.model, 
-              #                                 self.ui.sepOutputsCheckbox.isChecked(),
-              #                                 self.predictedId,
-              #                                 self.chooseFDI,
-              #                                 self.ui.outputFileLineEdit.text,
-              #                                 vtk_folder)
-
-
-              
-              # self.logic.process()
-              # self.addObserver(self.logic.cliNode,vtk.vtkCommand.ModifiedEvent,self.onProcessUpdate)
-              # self.onProcessStarted()
     self.ui.applyChangesButton.setEnabled(True)
     
   def parall_process(self,function,arguments=[],message=""):
@@ -966,21 +942,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
     if gap > 0.3:
         self.previous_time = current_time
         elapsed_time = current_time - self.start_time
-        # Mettez à jour le label avec le temps écoulé
         self.ui.timeLabel.setText(f"Segmentation in process\ntime : {elapsed_time:.2f}s")
     
-    # if os.path.isfile(self.log_path):
-    #   time = os.path.getmtime(self.log_path)
-    #   if time != self.time_log:
-    #     # if progress was made
-    #     self.time_log = time
-    #     self.progress += 1
-    #     progressbar_value = (self.progress -1) /self.nbFiles * 100
-    #     #print(f'progressbar value {progressbar_value}')
-    #     if progressbar_value < 100 :
-    #       self.ui.progressBar.setValue(progressbar_value)
-    #     else:
-    #       self.ui.progressBar.setValue(99)
 
 
     if self.logic.cliNode.GetStatus() & self.logic.cliNode.Completed:
@@ -1012,13 +975,6 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
         print("Process completed successfully.")
         self.ui.timeLabel.setText(f"time : {elapsed_time:.2f}s")
 
-        # Récupérer la sortie standard et l'erreur
-        # stdout = self.logic.cliNode.GetOutputText()
-        # stderr = self.logic.cliNode.GetErrorText()
-
-        # print("Output:\n", stdout)
-        # if stderr:
-        #     print("Errors:\n", stderr)
           
         print("*"*25,"Output cli","*"*25)
         print(self.logic.cliNode.GetOutputText())
