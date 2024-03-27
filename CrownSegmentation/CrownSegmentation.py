@@ -17,6 +17,7 @@ import threading
 import sys
 
 from pathlib import Path
+import re
 #
 # CrownSegmentation
 #
@@ -629,6 +630,16 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
 
   def onApplyChangesButton(self):
+    '''
+    This function is called when the user want to run dentalmodelseg
+    For Linux system : - check the installation of shapeaxi and pytorch3d in Slicer, if no with consent of user it install them
+                       - run crownsegmentationcli as a module of Slicer
+                       
+    For Windows sytem : - check the installation of wsl, if no show a message asking asking for the user to do it and stop the process
+                        - check the installation of miniconda in wsl, if no show a message asking for the user to do it and sop the process
+                        - check if the environnement "shapeaxi" exist, if no it will create it (with consent of user) with the required librairies (shapeaxi and pytorch3d)
+                        - run the file CrownSegmentationcli.py into wsl in the environment 'shapeaxi'
+    '''
     self.ui.applyChangesButton.setEnabled(False)
     #if ((self.inputChoice is InputChoice.MRML_NODE and self.MRMLNode is not None) or os.path.isfile(self.input) or os.path.isdir(self.input))  and os.path.isdir(self.outputFolder) and os.path.isfile(self.model):
     if not(os.path.isdir(self.outputFolder) and (os.path.isfile(self.model) or self.model=="latest")):
@@ -723,6 +734,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               folder_path = os.path.dirname(file_path)
               
         else : # if windows system
+            # The code is run on wsl into an environment 'shapeaxi'
+            
             self.conda_wsl = CondaSetUpCallWsl()  
             wsl = self.conda_wsl.testWslAvailable()
             ready = True
@@ -737,13 +750,13 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                   text = "Code can't be launch. \nWSL doen't have all the necessary libraries, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
                   ready = False
                   messageBox.information(None, "Information", text)
-            else :
+            else : # if wsl not install, ask user to install it ans stop process
               messageBox = qt.QMessageBox()
               text = "Code can't be launch. \nWSL is not installed, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
               ready = False
               messageBox.information(None, "Information", text)
             
-            if ready :
+            if ready : # checking if miniconda installed on wsl
               self.ui.timeLabel.setText(f"Checking if miniconda is installed")
               if "Error" in self.conda_wsl.condaRunCommand([self.conda_wsl.getCondaExecutable(),"--version"]): # if conda is setup
                     messageBox = qt.QMessageBox()
@@ -751,7 +764,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                     ready = False
                     messageBox.information(None, "Information", text)
             
-            if ready :
+            if ready : # checking if environment 'shapeaxi' exist on wsl and if no ask user permission to create and install required lib in it
               self.ui.timeLabel.setText(f"Checking if environnement exist")
               if not self.conda_wsl.condaTestEnv('shapeaxi') : # check is environnement exist, if not ask user the permission to do it
                 userResponse = slicer.util.confirmYesNoDisplay("The environnement to run the segmentation doesn't exist, do you want to create it ? ", windowTitle="Env doesn't exist")
@@ -793,11 +806,8 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                         previous_time = current_time
                         elapsed_time = current_time - start_time
                         self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
-                        # msg_box.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
-                  # msg_box.close()
                 else :
                     ready = False
-            print("on y croit peut etre ca va se lancer")
                     
             if ready : # if everything is ready launch dentalmodelseg on the environnement shapeaxi in wsl
               model = self.model
@@ -806,10 +816,40 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               else :
                 model = self.windows_to_linux_path(model)
 
-              command = [f'dentalmodelseg --vtk \"{self.windows_to_linux_path(input_vtk)}\" --stl \"{self.windows_to_linux_path(input_stl)}\" --csv \"{self.windows_to_linux_path(input_csv)}\" --out \"{self.windows_to_linux_path(self.ui.outputLineEdit.text)}\" --overwrite \"{self.ui.checkBoxOverwrite.checked}\" --model \"{model}\" --crown_segmentation \"{self.ui.sepOutputsCheckbox.isChecked()}\" --array_name \"{self.predictedId}\" --fdi \"{self.chooseFDI}\" --suffix \"{self.ui.outputFileLineEdit.text}\" --vtk_folder \"{self.windows_to_linux_path(vtk_folder)}\"']
-              print("command : ",command)
               name_env = "shapeaxi"
-              process = threading.Thread(target=self.conda_wsl.condaRunCommand, args=(command, "shapeaxi"))
+
+              # Creation of path to crownsegmentationcli.py
+              file_path = os.path.realpath(__file__)
+              folder = os.path.dirname(file_path)
+              cli_folder = os.path.join(folder, '../CrownSegmentationcli')
+              clis_folder_norm = os.path.normpath(cli_folder)
+              cli_path = os.path.join(clis_folder_norm, 'CrownSegmentationcli.py')
+              
+              # Creation path in wsl to dentalmodelseg
+              output_command = self.conda_wsl.condaRunCommand(["which","dentalmodelseg"],"shapeaxi").strip()
+              clean_output = re.search(r"Result: (.+)", output_command)
+              dentalmodelseg_path = clean_output.group(1).strip()
+              dentalmodelseg_path_clean = dentalmodelseg_path.replace("\\n","")
+              
+              
+              args = [surf,
+                      input_csv,
+                      self.ui.outputLineEdit.text,
+                      "1" if self.ui.checkBoxOverwrite.checked else "0", 
+                      self.model, 
+                      "1" if self.ui.sepOutputsCheckbox.isChecked() else "0",
+                      str(self.predictedId),
+                      str(self.chooseFDI),
+                      self.ui.outputFileLineEdit.text,
+                      vtk_folder,
+                      dentalmodelseg_path_clean]
+              
+              # Print args and path python to be run
+              print(f"cli_path : {cli_path}")
+              print(f"args : {args}")
+
+              # running in // to not block Slicer
+              process = threading.Thread(target=self.conda_wsl.condaRunFilePython, args=(cli_path,"shapeaxi",args))
               process.start()
               self.ui.applyChangesButton.setEnabled(False)
               self.ui.doneLabel.setHidden(True)
@@ -827,11 +867,12 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                       elapsed_time = current_time - start_time
                       self.ui.timeLabel.setText(f"time : {elapsed_time:.2f}s")
 
-              print("self.output : ",self.output)
+              
               self.ui.progressLabel.setHidden(True)
               self.ui.doneLabel.setHidden(False)
               self.ui.applyChangesButton.setEnabled(True)
 
+              # Delete csv file
               file_path = os.path.abspath(__file__)
               folder_path = os.path.dirname(file_path)
               csv_file = os.path.join(folder_path,"list_file.csv")
@@ -978,6 +1019,12 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
           
         print("*"*25,"Output cli","*"*25)
         print(self.logic.cliNode.GetOutputText())
+        
+        file_path = os.path.abspath(__file__)
+        folder_path = os.path.dirname(file_path)
+        csv_file = os.path.join(folder_path,"list_file.csv")
+        if os.path.exists(csv_file):
+          os.remove(csv_file)
         
   def onReset(self):
     self.ui.outputLineEdit.setText("")
