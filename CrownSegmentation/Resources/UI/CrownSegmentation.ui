@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>649</width>
-    <height>952</height>
+    <height>961</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -51,12 +51,12 @@
        <widget class="QComboBox" name="surfaceComboBox">
         <item>
          <property name="text">
-          <string>Select .vtk file</string>
+          <string>Select file</string>
          </property>
         </item>
         <item>
          <property name="text">
-          <string>Select folder (containing .vtk files)</string>
+          <string>Select folder</string>
          </property>
         </item>
         <item>
@@ -241,14 +241,14 @@
         </property>
        </widget>
       </item>
-      <item row="22" column="1">
+      <item row="21" column="1">
        <widget class="QPushButton" name="browseModelButton">
         <property name="text">
          <string>Select model</string>
         </property>
        </widget>
       </item>
-      <item row="23" column="1">
+      <item row="22" column="1">
        <widget class="QLabel" name="label_8">
         <property name="text">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;or&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -282,6 +282,13 @@
         </property>
         <property name="text">
          <string>Reset</string>
+        </property>
+       </widget>
+      </item>
+      <item row="23" column="1">
+       <widget class="QCheckBox" name="checkBoxLatestModel">
+        <property name="text">
+         <string>Use the latest version on Github</string>
         </property>
        </widget>
       </item>
@@ -457,14 +464,21 @@
       <item row="4" column="0">
        <widget class="QLabel" name="outputFileLabel">
         <property name="text">
-         <string>Output file name: </string>
+         <string>suffix : </string>
         </property>
        </widget>
       </item>
       <item row="4" column="1">
        <widget class="QLineEdit" name="outputFileLineEdit">
         <property name="text">
-         <string>output.vtk</string>
+         <string>predict</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QCheckBox" name="checkBoxOverwrite">
+        <property name="text">
+         <string>Overwrite</string>
         </property>
        </widget>
       </item>
@@ -531,6 +545,13 @@
     </widget>
    </item>
    <item alignment="Qt::AlignHCenter">
+    <widget class="QLabel" name="timeLabel">
+     <property name="text">
+      <string>time : 0s</string>
+     </property>
+    </widget>
+   </item>
+   <item alignment="Qt::AlignHCenter">
     <widget class="QPushButton" name="openOutSurfButton">
      <property name="font">
       <font>
@@ -592,12 +613,6 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>ctkCollapsibleButton</class>
-   <extends>QWidget</extends>
-   <header>ctkCollapsibleButton.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>qMRMLNodeComboBox</class>
    <extends>QWidget</extends>
    <header>qMRMLNodeComboBox.h</header>
@@ -606,6 +621,12 @@
    <class>qMRMLWidget</class>
    <extends>QWidget</extends>
    <header>qMRMLWidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ctkCollapsibleButton</class>
+   <extends>QWidget</extends>
+   <header>ctkCollapsibleButton.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
