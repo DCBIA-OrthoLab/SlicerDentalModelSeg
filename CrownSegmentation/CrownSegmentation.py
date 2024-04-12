@@ -7,8 +7,6 @@ from enum import Enum
 import subprocess
 import platform
 
-from CondaSetUp import  CondaSetUpCall,CondaSetUpCallWsl
-
 import webbrowser
 import csv
 import io
@@ -735,149 +733,12 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               
         else : # if windows system
             # The code is run on wsl into an environment 'shapeaxi'
+            msg = qt.QMessageBox()
+            msg.setText("DentalModelSeg is not available on Slicer version 5.6 on a Windows system. Please use the Preview version of Slicer or a Linux system.")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
             
-            self.conda_wsl = CondaSetUpCallWsl()  
-            wsl = self.conda_wsl.testWslAvailable()
-            ready = True
-            self.ui.timeLabel.setHidden(False)
-            self.ui.timeLabel.setText(f"Checking if wsl is installed, this task may take a moments")
-            slicer.app.processEvents()
-            if wsl : # if wsl is install
-              lib = self.check_lib_wsl()
-              if not lib : # if lib required are not install
-                  self.ui.timeLabel.setText(f"Checking if the required librairies are installed, this task may take a moments")
-                  messageBox = qt.QMessageBox()
-                  text = "Code can't be launch. \nWSL doen't have all the necessary libraries, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
-                  ready = False
-                  messageBox.information(None, "Information", text)
-            else : # if wsl not install, ask user to install it ans stop process
-              messageBox = qt.QMessageBox()
-              text = "Code can't be launch. \nWSL is not installed, please download the installer and follow the instructin here : https://github.com/DCBIA-OrthoLab/SlicerAutomatedDentalTools/releases/download/wsl2_windows/installer_wsl2.zip\nDownloading may be blocked by Chrome, this is normal, just authorize it."
-              ready = False
-              messageBox.information(None, "Information", text)
-            
-            if ready : # checking if miniconda installed on wsl
-              self.ui.timeLabel.setText(f"Checking if miniconda is installed")
-              if "Error" in self.conda_wsl.condaRunCommand([self.conda_wsl.getCondaExecutable(),"--version"]): # if conda is setup
-                    messageBox = qt.QMessageBox()
-                    text = "Code can't be launch. \nConda is not setup in WSL. Please go the extension CondaSetUp in SlicerConda to do it."
-                    ready = False
-                    messageBox.information(None, "Information", text)
-            
-            if ready : # checking if environment 'shapeaxi' exist on wsl and if no ask user permission to create and install required lib in it
-              self.ui.timeLabel.setText(f"Checking if environnement exist")
-              if not self.conda_wsl.condaTestEnv('shapeaxi') : # check is environnement exist, if not ask user the permission to do it
-                userResponse = slicer.util.confirmYesNoDisplay("The environnement to run the segmentation doesn't exist, do you want to create it ? ", windowTitle="Env doesn't exist")
-                if userResponse :
-                  start_time = time.time()
-                  previous_time = start_time
-                  self.ui.timeLabel.setText(f"Creation of the new environment. This task may take a few minutes.\ntime: 0.0s")
-                  name_env = "shapeaxi"
-                  process = threading.Thread(target=self.conda_wsl.condaCreateEnv, args=(name_env,"3.9",["shapeaxi"],)) #run in paralle to not block slicer
-                  process.start()
-                  
-                  while process.is_alive():
-                    slicer.app.processEvents()
-                    current_time = time.time()
-                    gap=current_time-previous_time
-                    if gap>0.3:
-                        previous_time = current_time
-                        elapsed_time = current_time - start_time
-                        self.ui.timeLabel.setText(f"Creation of the new environment. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
-              
-                  start_time = time.time()
-                  previous_time = start_time
-                  self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: 0.0s")
-                  name_env = "shapeaxi"
-                  file_path = os.path.realpath(__file__)
-                  folder = os.path.dirname(file_path)
-                  utils_folder = os.path.join(folder, "utils")
-                  utils_folder_norm = os.path.normpath(utils_folder)
-                  install_path = self.windows_to_linux_path(os.path.join(utils_folder_norm, 'install_pytorch.py'))
-                  path_pip = self.conda_wsl.getCondaPath()+"/envs/shapeaxi/bin/pip"
-                  process = threading.Thread(target=self.conda_wsl.condaRunFilePython, args=(install_path,name_env,[path_pip],)) # launch install_pythorch.py with the environnement ali_ios to install pytorch3d on it
-                  process.start()
-                  
-                  while process.is_alive():
-                    slicer.app.processEvents()
-                    current_time = time.time()
-                    gap=current_time-previous_time
-                    if gap>0.3:
-                        previous_time = current_time
-                        elapsed_time = current_time - start_time
-                        self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
-                else :
-                    ready = False
-                    
-            if ready : # if everything is ready launch dentalmodelseg on the environnement shapeaxi in wsl
-              model = self.model
-              if self.model == "latest":
-                model = None
-              else :
-                model = self.windows_to_linux_path(model)
-
-              name_env = "shapeaxi"
-
-              # Creation of path to crownsegmentationcli.py
-              file_path = os.path.realpath(__file__)
-              folder = os.path.dirname(file_path)
-              cli_folder = os.path.join(folder, '../CrownSegmentationcli')
-              clis_folder_norm = os.path.normpath(cli_folder)
-              cli_path = os.path.join(clis_folder_norm, 'CrownSegmentationcli.py')
-              
-              # Creation path in wsl to dentalmodelseg
-              output_command = self.conda_wsl.condaRunCommand(["which","dentalmodelseg"],"shapeaxi").strip()
-              clean_output = re.search(r"Result: (.+)", output_command)
-              dentalmodelseg_path = clean_output.group(1).strip()
-              dentalmodelseg_path_clean = dentalmodelseg_path.replace("\\n","")
-              
-              
-              args = [surf,
-                      input_csv,
-                      self.ui.outputLineEdit.text,
-                      "1" if self.ui.checkBoxOverwrite.checked else "0", 
-                      self.model, 
-                      "1" if self.ui.sepOutputsCheckbox.isChecked() else "0",
-                      str(self.predictedId),
-                      str(self.chooseFDI),
-                      self.ui.outputFileLineEdit.text,
-                      vtk_folder,
-                      dentalmodelseg_path_clean]
-              
-              # Print args and path python to be run
-              print(f"cli_path : {cli_path}")
-              print(f"args : {args}")
-
-              # running in // to not block Slicer
-              process = threading.Thread(target=self.conda_wsl.condaRunFilePython, args=(cli_path,"shapeaxi",args))
-              process.start()
-              self.ui.applyChangesButton.setEnabled(False)
-              self.ui.doneLabel.setHidden(True)
-              self.ui.timeLabel.setHidden(False)
-              self.ui.progressLabel.setHidden(False)
-              self.ui.timeLabel.setText(f"time : 0.00s")
-              start_time = time.time()
-              previous_time = start_time
-              while process.is_alive():
-                  slicer.app.processEvents()
-                  current_time = time.time()
-                  gap=current_time-previous_time
-                  if gap>0.3:
-                      previous_time = current_time
-                      elapsed_time = current_time - start_time
-                      self.ui.timeLabel.setText(f"time : {elapsed_time:.2f}s")
-
-              
-              self.ui.progressLabel.setHidden(True)
-              self.ui.doneLabel.setHidden(False)
-              self.ui.applyChangesButton.setEnabled(True)
-
-              # Delete csv file
-              file_path = os.path.abspath(__file__)
-              folder_path = os.path.dirname(file_path)
-              csv_file = os.path.join(folder_path,"list_file.csv")
-              if os.path.exists(csv_file):
-                os.remove(csv_file)
 
     self.ui.applyChangesButton.setEnabled(True)
     
