@@ -789,11 +789,16 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                   previous_time = start_time
                   self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: 0.0s")
                   name_env = "shapeaxi"
-                  file_path = os.path.realpath(__file__)
-                  folder = os.path.dirname(file_path)
-                  utils_folder = os.path.join(folder, "utils")
-                  utils_folder_norm = os.path.normpath(utils_folder)
-                  install_path = self.windows_to_linux_path(os.path.join(utils_folder_norm, 'install_pytorch.py'))
+                  # file_path = os.path.realpath(__file__)
+                  # folder = os.path.dirname(file_path)
+                  # utils_folder = os.path.join(folder, "utils")
+                  # utils_folder_norm = os.path.normpath(utils_folder)
+                  # install_path = self.windows_to_linux_path(os.path.join(utils_folder_norm, 'install_pytorch.py'))
+                  
+                  PYTHONPATH = os.environ.get('PYTHONPATH')
+                  search_term = "SlicerDentalModelSeg"
+                  filename_to_search = "install_pytorch.py"
+                  install_path = self.windows_to_linux_path(self.filter_and_search_paths(PYTHONPATH, search_term, filename_to_search))
                   path_pip = self.conda_wsl.getCondaPath()+"/envs/shapeaxi/bin/pip"
                   process = threading.Thread(target=self.conda_wsl.condaRunFilePython, args=(install_path,name_env,[path_pip],)) # launch install_pythorch.py with the environnement ali_ios to install pytorch3d on it
                   process.start()
@@ -819,11 +824,16 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               name_env = "shapeaxi"
 
               # Creation of path to crownsegmentationcli.py
-              file_path = os.path.realpath(__file__)
-              folder = os.path.dirname(file_path)
-              cli_folder = os.path.join(folder, '../CrownSegmentationcli')
-              clis_folder_norm = os.path.normpath(cli_folder)
-              cli_path = os.path.join(clis_folder_norm, 'CrownSegmentationcli.py')
+              # file_path = os.path.realpath(__file__)
+              # folder = os.path.dirname(file_path)
+              # cli_folder = os.path.join(folder, '../CrownSegmentationcli')
+              # clis_folder_norm = os.path.normpath(cli_folder)
+              # cli_path = os.path.join(clis_folder_norm, 'CrownSegmentationcli.py')
+              
+              PYTHONPATH = os.environ.get('PYTHONPATH')
+              search_term = "SlicerDentalModelSeg"
+              filename_to_search = "CrownSegmentationcli.py"
+              cli_path = self.windows_to_linux_path(self.filter_and_search_paths(PYTHONPATH, search_term, filename_to_search))
               
               # Creation path in wsl to dentalmodelseg
               output_command = self.conda_wsl.condaRunCommand(["which","dentalmodelseg"],"shapeaxi").strip()
@@ -880,6 +890,34 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                 os.remove(csv_file)
 
     self.ui.applyChangesButton.setEnabled(True)
+    
+    def find_file_in_subdirectories(self,root_path, filename):
+        """
+        Search recursively for a file in given root directory and its subdirectories.
+        """
+        for dirpath, dirnames, files in os.walk(root_path):
+            if filename in files:
+                return os.path.join(dirpath, filename)
+        return None
+
+    def filter_and_search_paths(self,pythonpath, search_term, filename):
+        """
+        Filter paths containing a specific term, crop the path from that term,
+        and search for a specific file in that directory and its subdirectories.
+        """
+        # Split the pythonpath into individual paths
+        paths = pythonpath.split(';')
+        
+        # Filter and modify paths
+        filtered_paths = [path.split(search_term)[0] + search_term for path in paths if search_term in path]
+        
+        # Search for the file in each path
+        for path in filtered_paths:
+            found_file = self.find_file_in_subdirectories(path, filename)
+            if found_file:
+                return found_file
+        
+        return "File not found in any specified directories."
     
   def parall_process(self,function,arguments=[],message=""):
         process = threading.Thread(target=function, args=tuple(arguments)) #run in paralle to not block slicer
