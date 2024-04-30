@@ -915,33 +915,6 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
     self.ui.applyChangesButton.setEnabled(True)
     
-    def find_file_in_subdirectories(self,root_path, filename):
-        """
-        Search recursively for a file in given root directory and its subdirectories.
-        """
-        for dirpath, dirnames, files in os.walk(root_path):
-            if filename in files:
-                return os.path.join(dirpath, filename)
-        return None
-
-    def filter_and_search_paths(self,pythonpath, search_term, filename):
-        """
-        Filter paths containing a specific term, crop the path from that term,
-        and search for a specific file in that directory and its subdirectories.
-        """
-        # Split the pythonpath into individual paths
-        paths = pythonpath.split(';')
-        
-        # Filter and modify paths
-        filtered_paths = [path.split(search_term)[0] + search_term for path in paths if search_term in path]
-        
-        # Search for the file in each path
-        for path in filtered_paths:
-            found_file = self.find_file_in_subdirectories(path, filename)
-            if found_file:
-                return found_file
-        
-        return "File not found in any specified directories."
     
   def parall_process(self,function,arguments=[],message=""):
         process = threading.Thread(target=function, args=tuple(arguments)) #run in paralle to not block slicer
