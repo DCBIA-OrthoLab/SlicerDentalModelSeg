@@ -628,6 +628,10 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
   ###
 
   def check_pythonpath_windows(self,name_env,file):
+      '''
+      Check if the environment env_name in wsl know the path to a specific file (ex : Crownsegmentationcli.py)
+      return : bool
+      '''
       conda_exe = self.conda_wsl.getCondaExecutable()
       command = [conda_exe, "run", "-n", name_env, "python" ,"-c", f"\"import {file} as check;import os; print(os.path.isfile(check.__file__))\""]
       print("command : ",command)
@@ -638,6 +642,9 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
       return False
     
   def give_pythonpath_windows(self,name_env):
+      '''
+      take the pythonpath of Slicer and give it to the environment name_env in wsl.
+      '''
       paths = slicer.app.moduleManager().factoryManager().searchPaths
       mnt_paths = []
       for path in paths :
