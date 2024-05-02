@@ -627,6 +627,34 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
   ### PROCESS
   ###
 
+  def check_pythonpath_windows(self,name_env,file):
+      '''
+      Check if the environment env_name in wsl know the path to a specific file (ex : Crownsegmentationcli.py)
+      return : bool
+      '''
+      conda_exe = self.conda_wsl.getCondaExecutable()
+      command = [conda_exe, "run", "-n", name_env, "python" ,"-c", f"\"import {file} as check;import os; print(os.path.isfile(check.__file__))\""]
+      print("command : ",command)
+      result = self.conda_wsl.condaRunCommand(command)
+      print("result = ",result)
+      if "True" in result :
+          return True
+      return False
+    
+  def give_pythonpath_windows(self,name_env):
+      '''
+      take the pythonpath of Slicer and give it to the environment name_env in wsl.
+      '''
+      paths = slicer.app.moduleManager().factoryManager().searchPaths
+      mnt_paths = []
+      for path in paths :
+          mnt_paths.append(f"\"{self.windows_to_linux_path(path)}\"")
+      pythonpath_arg = 'PYTHONPATH=' + ':'.join(mnt_paths)
+      conda_exe = self.conda_wsl.getCondaExecutable()
+      # print("Conda_exe : ",conda_exe)
+      argument = [conda_exe, 'env', 'config', 'vars', 'set', '-n', name_env, pythonpath_arg]
+      print("arguments : ",argument)
+      self.conda_wsl.condaRunCommand(argument)
 
 
   def onApplyChangesButton(self):
@@ -735,13 +763,14 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               
         else : # if windows system
             # The code is run on wsl into an environment 'shapeaxi'
-            
             self.conda_wsl = CondaSetUpCallWsl()  
             wsl = self.conda_wsl.testWslAvailable()
             ready = True
             self.ui.timeLabel.setHidden(False)
             self.ui.timeLabel.setText(f"Checking if wsl is installed, this task may take a moments")
             slicer.app.processEvents()
+            
+            
             if wsl : # if wsl is install
               lib = self.check_lib_wsl()
               if not lib : # if lib required are not install
@@ -765,7 +794,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                     messageBox.information(None, "Information", text)
             
             if ready : # checking if environment 'shapeaxi' exist on wsl and if no ask user permission to create and install required lib in it
-              self.ui.timeLabel.setText(f"Checking if environnement exist")
+              self.ui.timeLabel.setText(f"Checking if environnement exist")     
               if not self.conda_wsl.condaTestEnv('shapeaxi') : # check is environnement exist, if not ask user the permission to do it
                 userResponse = slicer.util.confirmYesNoDisplay("The environnement to run the segmentation doesn't exist, do you want to create it ? ", windowTitle="Env doesn't exist")
                 if userResponse :
@@ -788,24 +817,35 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                   start_time = time.time()
                   previous_time = start_time
                   self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: 0.0s")
-                  name_env = "shapeaxi"
-                  file_path = os.path.realpath(__file__)
-                  folder = os.path.dirname(file_path)
-                  utils_folder = os.path.join(folder, "utils")
-                  utils_folder_norm = os.path.normpath(utils_folder)
-                  install_path = self.windows_to_linux_path(os.path.join(utils_folder_norm, 'install_pytorch.py'))
-                  path_pip = self.conda_wsl.getCondaPath()+"/envs/shapeaxi/bin/pip"
-                  process = threading.Thread(target=self.conda_wsl.condaRunFilePython, args=(install_path,name_env,[path_pip],)) # launch install_pythorch.py with the environnement ali_ios to install pytorch3d on it
-                  process.start()
                   
-                  while process.is_alive():
-                    slicer.app.processEvents()
-                    current_time = time.time()
-                    gap=current_time-previous_time
-                    if gap>0.3:
-                        previous_time = current_time
-                        elapsed_time = current_time - start_time
-                        self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
+                  name_env = "shapeaxi"
+                  # result_pythonpath = self.check_pythonpath_windows(name_env,"ALI_IOS_utils.requirement") # THIS LINE IS WORKING
+                  result_pythonpath = self.check_pythonpath_windows(name_env,"CrownSegmentation_utils.install_pytorch")
+                  if not result_pythonpath : 
+                    self.give_pythonpath_windows(name_env)
+                    # result_pythonpath = self.check_pythonpath_windows(name_env,"ALI_IOS_utils.requirement") # THIS LINE IS WORKING
+                    result_pythonpath = self.check_pythonpath_windows(name_env,"CrownSegmentation_utils.install_pytorch")
+                    
+                  if result_pythonpath : 
+                    conda_exe = self.conda_wsl.getCondaExecutable()
+                    path_pip = self.conda_wsl.getCondaPath()+f"/envs/{name_env}/bin/pip"
+                    # command = [conda_exe, "run", "-n", name_env, "python" ,"-m", f"ALI_IOS_utils.requirement",path_pip] # THIS LINE IS WORKING
+                    command = [conda_exe, "run", "-n", name_env, "python" ,"-m", f"CrownSegmentation_utils.install_pytorch",path_pip]
+                    print("command : ",command)
+                  
+                    process = threading.Thread(target=self.conda_wsl.condaRunCommand, args=(command,)) # launch install_pythorch.py with the environnement ali_ios to install pytorch3d on it
+                    process.start()
+                    
+                    while process.is_alive():
+                      slicer.app.processEvents()
+                      current_time = time.time()
+                      gap=current_time-previous_time
+                      if gap>0.3:
+                          previous_time = current_time
+                          elapsed_time = current_time - start_time
+                          self.ui.timeLabel.setText(f"Installation of librairies into the new environnement. This task may take a few minutes.\ntime: {elapsed_time:.1f}s")
+                          
+                  ready = True
                 else :
                     ready = False
                     
@@ -818,54 +858,55 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
 
               name_env = "shapeaxi"
 
-              # Creation of path to crownsegmentationcli.py
-              file_path = os.path.realpath(__file__)
-              folder = os.path.dirname(file_path)
-              cli_folder = os.path.join(folder, '../CrownSegmentationcli')
-              clis_folder_norm = os.path.normpath(cli_folder)
-              cli_path = os.path.join(clis_folder_norm, 'CrownSegmentationcli.py')
-              
-              # Creation path in wsl to dentalmodelseg
-              output_command = self.conda_wsl.condaRunCommand(["which","dentalmodelseg"],"shapeaxi").strip()
-              clean_output = re.search(r"Result: (.+)", output_command)
-              dentalmodelseg_path = clean_output.group(1).strip()
-              dentalmodelseg_path_clean = dentalmodelseg_path.replace("\\n","")
-              
-              
-              args = [surf,
-                      input_csv,
-                      self.ui.outputLineEdit.text,
-                      "1" if self.ui.checkBoxOverwrite.checked else "0", 
-                      self.model, 
-                      "1" if self.ui.sepOutputsCheckbox.isChecked() else "0",
-                      str(self.predictedId),
-                      str(self.chooseFDI),
-                      self.ui.outputFileLineEdit.text,
-                      vtk_folder,
-                      dentalmodelseg_path_clean]
-              
-              # Print args and path python to be run
-              print(f"cli_path : {cli_path}")
-              print(f"args : {args}")
+              result_pythonpath = self.check_pythonpath_windows(name_env,"CrownSegmentationcli")
+              if not result_pythonpath : 
+                self.give_pythonpath_windows(name_env)
+                result_pythonpath = self.check_pythonpath_windows(name_env,"CrownSegmentationcli")
+                
+              if result_pythonpath :
+                # Creation path in wsl to dentalmodelseg
+                output_command = self.conda_wsl.condaRunCommand(["which","dentalmodelseg"],"shapeaxi").strip()
+                clean_output = re.search(r"Result: (.+)", output_command)
+                dentalmodelseg_path = clean_output.group(1).strip()
+                dentalmodelseg_path_clean = dentalmodelseg_path.replace("\\n","")
+                
+                
+                args = [surf,
+                        input_csv,
+                        self.ui.outputLineEdit.text,
+                        "1" if self.ui.checkBoxOverwrite.checked else "0", 
+                        self.model, 
+                        "1" if self.ui.sepOutputsCheckbox.isChecked() else "0",
+                        str(self.predictedId),
+                        str(self.chooseFDI),
+                        self.ui.outputFileLineEdit.text,
+                        vtk_folder,
+                        dentalmodelseg_path_clean]
+                
+                conda_exe = self.conda_wsl.getCondaExecutable()
+                command = [conda_exe, "run", "-n", name_env, "python" ,"-m", f"CrownSegmentationcli"]
+                for arg in args :
+                      command.append("\""+arg+"\"")
+                print("command : ",command)
 
-              # running in // to not block Slicer
-              process = threading.Thread(target=self.conda_wsl.condaRunFilePython, args=(cli_path,"shapeaxi",args))
-              process.start()
-              self.ui.applyChangesButton.setEnabled(False)
-              self.ui.doneLabel.setHidden(True)
-              self.ui.timeLabel.setHidden(False)
-              self.ui.progressLabel.setHidden(False)
-              self.ui.timeLabel.setText(f"time : 0.00s")
-              start_time = time.time()
-              previous_time = start_time
-              while process.is_alive():
-                  slicer.app.processEvents()
-                  current_time = time.time()
-                  gap=current_time-previous_time
-                  if gap>0.3:
-                      previous_time = current_time
-                      elapsed_time = current_time - start_time
-                      self.ui.timeLabel.setText(f"time : {elapsed_time:.2f}s")
+                # running in // to not block Slicer
+                process = threading.Thread(target=self.conda_wsl.condaRunCommand, args=(command,))
+                process.start()
+                self.ui.applyChangesButton.setEnabled(False)
+                self.ui.doneLabel.setHidden(True)
+                self.ui.timeLabel.setHidden(False)
+                self.ui.progressLabel.setHidden(False)
+                self.ui.timeLabel.setText(f"time : 0.00s")
+                start_time = time.time()
+                previous_time = start_time
+                while process.is_alive():
+                    slicer.app.processEvents()
+                    current_time = time.time()
+                    gap=current_time-previous_time
+                    if gap>0.3:
+                        previous_time = current_time
+                        elapsed_time = current_time - start_time
+                        self.ui.timeLabel.setText(f"time : {elapsed_time:.2f}s")
 
               
               self.ui.progressLabel.setHidden(True)
@@ -880,6 +921,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
                 os.remove(csv_file)
 
     self.ui.applyChangesButton.setEnabled(True)
+    
     
   def parall_process(self,function,arguments=[],message=""):
         process = threading.Thread(target=function, args=tuple(arguments)) #run in paralle to not block slicer
