@@ -4,6 +4,8 @@ set(MODULE_NAME CrownSegmentation)
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
+  CrownSegmentation_utils/__init__.py
+  CrownSegmentation_utils/install_pytorch.py
   )
 
 set(MODULE_PYTHON_RESOURCES
