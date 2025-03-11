@@ -7,7 +7,6 @@ from enum import Enum
 import subprocess
 import platform
 
-from CondaSetUp import  CondaSetUpCall,CondaSetUpCallWsl
 
 import webbrowser
 import csv
@@ -766,6 +765,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               
         else : # if windows system
             # The code is run on wsl into an environment 'shapeaxi'
+            from CondaSetUp import  CondaSetUpCall,CondaSetUpCallWsl
             self.conda_wsl = CondaSetUpCallWsl()  
             wsl = self.conda_wsl.testWslAvailable()
             ready = True
