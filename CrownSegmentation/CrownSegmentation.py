@@ -26,15 +26,18 @@ import re
 def func_import(install=False): 
   try : 
     import pkg_resources
-    shapeaxi_version = pkg_resources.get_distribution("shapeaxi").version 
-    print("Distribution    Found for shapeaxi")
-    # pytorch3d = pkg_resources.get_distribution("pytorch3d").version 
+    shapeaxi_version = pkg_resources.get_distribution("shapeaxi").version
+    if shapeaxi_version != "1.0.10":
+      print(f"Distribution Found for shapeaxi with wrong version {shapeaxi_version} instead of 1.0.10")
+      print("updating shapeaxi...")
+      pip_install("shapeaxi==1.0.10")
+    print("Distribution Found for shapeaxi with version : ",shapeaxi_version)
     import pytorch3d
     return True
   except : 
     print("ERROR")
     if install :
-      pip_install("shapeaxi")
+      pip_install("shapeaxi==1.0.10")
       try:
         import torch
       except ImportError:
