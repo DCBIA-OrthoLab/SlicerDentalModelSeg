@@ -788,7 +788,7 @@ class CrownSegmentationWidget(ScriptedLoadableModuleWidget, VTKObservationMixin)
               start_time = time.time()
               previous_time = start_time
               self.ui.timeLabel.setText(f"Creation of the new environment. This task may take a few minutes.\ntime: 0.0s")
-              process = threading.Thread(target=self.conda.condaCreateEnv, args=(name_env,"3.9",["shapeaxi==1.0.10"],)) #run in paralle to not block slicer
+              process = threading.Thread(target=self.conda.condaCreateEnv, args=(name_env,"3.9",["shapeaxi==1.0.10","ocnn==2.2.1"],)) #run in paralle to not block slicer
               process.start()
               
               while process.is_alive():
